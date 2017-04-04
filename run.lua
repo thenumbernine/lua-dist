@@ -4,7 +4,8 @@
 
 local target = ...
 
-local ffi = require 'ffi'
+-- global namespace so distinfo can see it
+ffi = require 'ffi'
 require 'ext'
 
 assert(loadfile('distinfo', 'bt', _G))()

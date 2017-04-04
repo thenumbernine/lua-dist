@@ -3,7 +3,8 @@ In OSX this makes an .app
 In Windows this makes a folder with a run.bat
 That's all I've got for now.  maybe an Android version will come someday, based on the jni SDL + luajit build of android.
 
-usage: lua -ldist
+usage: /path/to/dist/run.lua [platform]
+	where platform is all or one of the following: osx, win32, win64
 
 requires a distinfo file
 
