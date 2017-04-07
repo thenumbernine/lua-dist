@@ -8,9 +8,14 @@ local target = ...
 ffi = require 'ffi'
 require 'ext'
 
+includeLuaBinary = true
+
 assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
 assert(files)
+
+local projectsDir = os.getenv'HOME'..'/Projects/lua'
+local ufoDir = projectsDir..'/ufo' 
 
 local function fixpath(path)
 	if ffi.os == 'Windows' then
@@ -50,7 +55,7 @@ local function copyDirToDir(srcdir, dstdir, pattern)
 		exec('xcopy '..fixpath(srcdir)..'\\'..pattern..' '..fixpath(dstdir..'/'..srcdir)..' /E /I /Y')
 	else
 		--exec('cp -R '..srcdir..' '..dstdir)
-		exec("rsync -avm --include='"..pattern.."' -f 'hide,! */' "..srcdir.." "..dstdir)
+		exec("rsync -avm --exclude='.*' --include='"..pattern.."' -f 'hide,! */' "..srcdir.." "..dstdir)
 	end
 end
 
@@ -83,17 +88,15 @@ local function getLuaArgs(plat)
 	return getForPlat(luaArgs, plat, 'string')
 end
 
-mkdir('dist')
-
 -- the windows-specific stuff:
 local function makeWin(arch)
 	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
 	local osDir = 'dist/win'..bits
 	mkdir(osDir)
-	local runBat = osDir..'/run.bat'
 
 -- TODO for now windows runs with no audio and no editor.  eventually add OpenAL and C/ImGui support. 
+	local runBat = osDir..'/run.bat'
 	file[runBat] = table{
 		'cd data',
 		[[set PATH=%PATH%;bin\Windows\]]..arch,
@@ -101,7 +104,7 @@ local function makeWin(arch)
 	}:append(
 		luaDistVer == 'luajit' and {'set LUAJIT_LIBPATH=.'} or {}
 	):append{
-		[[bin\Windows\x86\]]..luaDistVer..'.exe '
+		'bin\\Windows\\'..arch..'\\'..luaDistVer..'.exe '
 			..(getLuaArgs'win' or '')
 			..' > out.txt 2> err.txt',
 		'cd ..'
@@ -115,7 +118,7 @@ local function makeWin(arch)
 	mkdir(binDir)
 	
 	-- copy luajit
-	copyFileToDir('../ufo/bin/Windows/'..arch..'/'..luaDistVer..'.exe', binDir)
+	copyFileToDir(ufoDir..'/bin/Windows/'..arch..'/'..luaDistVer..'.exe', binDir)
 	
 	-- copy body
 	copyBody(dataDir)
@@ -125,7 +128,7 @@ local function makeWin(arch)
 	if winLuajitLibs then
 		for _,fn in ipairs(winLuajitLibs) do
 			for _,ext in ipairs{'dll','lib'} do
-				copyFileToDir('../ufo/bin/Windows/'..arch..'/'..fn..'.'..ext, binDir)
+				copyFileToDir(ufoDir..'/bin/Windows/'..arch..'/'..fn..'.'..ext, binDir)
 			end
 		end
 	end
@@ -206,7 +209,7 @@ local function makeOSX()
 		mkdir(resourcesDir..'/bin')
 		mkdir(resourcesDir..'/bin/OSX')
 		for _,fn in ipairs(osxLuajitLibs) do
-			exec('cp ../bin/OSX/'..fn..'.dylib '..resourcesDir..'/bin/OSX')
+			exec('cp '..projectsDir..'/bin/OSX/'..fn..'.dylib '..resourcesDir..'/bin/OSX')
 		end
 	end
 end
@@ -235,27 +238,69 @@ local function makeLinux(arch)
 
 	local dataDir = osDir..'/data'
 	mkdir(dataDir)
-	mkdir(dataDir..'/bin')
-	mkdir(dataDir..'/bin/Linux')
-	local binDir = dataDir..'/bin/Linux/'..arch
-	mkdir(binDir)
 	
-	-- copy luajit
-	copyFileToDir('../ufo/bin/Linux/'..arch..'/'..luaDistVer, binDir)
+	local linuxLuajitLibs = getLuajitLibs'linux'
+	if includeLuaBinary or linuxLuajitLibs then
+		mkdir(dataDir..'/bin')
+		mkdir(dataDir..'/bin/Linux')
+		local binDir = dataDir..'/bin/Linux/'..arch
+		mkdir(binDir)
+	end	
+		-- copy luajit
+	if includeLuaBinary then
+		copyFileToDir(ufoDir..'/bin/Linux/'..arch..'/'..luaDistVer, binDir)
+	end
 
 	-- copy body
 	copyBody(dataDir)
 
 	-- copy ffi linux so's
-	local linuxLuajitLibs = getLuajitLibs'linux'
 	if linuxLuajitLibs then
 		for _,fn in ipairs(linuxLuajitLibs) do
-			copyFileToDir('../ufo/bin/Linux/'..arch..'/'..fn..'.so', binDir)
+			copyFileToDir(ufoDir..'/bin/Linux/'..arch..'/'..fn..'.so', binDir)
 		end
 	end
 end
 
+-- i'm using this for a webserver distributable that assumes the host has lua already installed
+local function makeWebServer()
+	assert(luaDistVer ~= 'luajit', "not supported just yet")
+	local osDir = 'dist/webserver'
+	mkdir(osDir)
+
+	-- like makeWin but without path, assumes external Lua binary
+	local runBat = osDir..'/run.bat'
+	file[runBat] = table{
+		'cd data',
+		[[set LUA_PATH=./?.lua;./?/?.lua]],
+		luaDistVer..'.exe '
+			..(getLuaArgs'win' or '')
+			..' > out.txt 2> err.txt',
+		'cd ..'
+	}:concat'\n'..'\n'
+
+	-- like makeLinux but with no local reference to the Lua binary (assumes it is external)
+	local runSh = osDir..'/run.sh'
+	file[runSh] = table{
+		[[#!/usr/bin/env bash]],
+		'cd data',
+		[[export LUA_PATH="./?.lua;./?/?.lua"]],
+		luaDistVer..' '
+			..(getLuaArgs'linux' or '')
+			..' > out.txt 2> err.txt',
+	}:concat'\n'..'\n'
+	exec('chmod +x '..runSh)
+
+	local dataDir = osDir..'/data'
+	mkdir(dataDir)
+
+	-- copy body
+	copyBody(dataDir)
+end
+
+mkdir('dist')
 if target == 'all' or target == 'osx' then makeOSX() end
 if target == 'all' or target == 'win32' then makeWin('x86') end
 --if target == 'all' or target == 'win64' then makeWin('x64') end -- ufo only runs the 64 bit versions for amd ...
 if target == 'all' or target == 'linux' then makeLinux('x64') end
+if target == 'all' or target == 'webserver' then makeWebServer() end
