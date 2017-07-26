@@ -59,9 +59,8 @@ local function copyDirToDir(srcdir, dstdir, pattern)
 	end
 end
 
--- the platform-independent stuff:
-local function copyBody(destDir)
-	for base, filesForBase in pairs(files) do
+local function copyByDescTable(destDir, descTable)
+	for base, filesForBase in pairs(descTable) do
 		for _,file in ipairs(filesForBase) do
 			local src = base..'/'..file
 			if io.isdir(src) then
@@ -71,6 +70,11 @@ local function copyBody(destDir)
 			end
 		end
 	end
+end
+
+-- the platform-independent stuff:
+local function copyBody(destDir)
+	copyByDescTable(destDir, files)
 end
 
 -- returns t[plat], t[1], or t, depending on which exists and is a table 
@@ -176,8 +180,9 @@ local function makeOSX()
 
 	local macOSDir = contentsDir..'/MacOS'
 	mkdir(macOSDir)
+
+	-- lemme double check the dir structure on this ...
 	local runSh = macOSDir..'/run.sh' 
-	
 	file[runSh] = table{
 		[[#!/usr/bin/env bash]],
 		-- https://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
@@ -263,34 +268,16 @@ local function makeLinux(arch)
 end
 
 -- i'm using this for a webserver distributable that assumes the host has lua already installed
+-- it's a really bad hack, but I'm lazy
 local function makeWebServer()
 	assert(luaDistVer ~= 'luajit', "not supported just yet")
 	local osDir = 'dist/webserver'
 	mkdir(osDir)
 
-	-- like makeWin but without path, assumes external Lua binary
-	local runBat = osDir..'/run.bat'
-	file[runBat] = table{
-		'cd data',
-		[[set LUA_PATH=./?.lua;./?/?.lua]],
-		luaDistVer..'.exe '
-			..(getLuaArgs'win' or '')
-			..' > out.txt 2> err.txt',
-		'cd ..'
-	}:concat'\n'..'\n'
-
-	-- like makeLinux but with no local reference to the Lua binary (assumes it is external)
-	local runSh = osDir..'/run.sh'
-	file[runSh] = table{
-		[[#!/usr/bin/env bash]],
-		'cd data',
-		[[export LUA_PATH="./?.lua;./?/?.lua"]],
-		luaDistVer..' '
-			..(getLuaArgs'linux' or '')
-			..' > out.txt 2> err.txt',
-	}:concat'\n'..'\n'
-	exec('chmod +x '..runSh)
-
+	-- copy launch scripts
+	assert(launchScripts, "expected launchScripts")
+	copyByDescTable(osDir, launchScripts)
+	
 	local dataDir = osDir..'/data'
 	mkdir(dataDir)
 
