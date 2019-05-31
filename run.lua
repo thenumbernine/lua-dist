@@ -33,7 +33,9 @@ end
 
 local function exec(cmd)
 	print(cmd)
-	assert(os.execute(cmd))
+	--assert(
+	print(os.execute(cmd))
+	--)
 end
 
 -- TODO replace all exec(cp) and exec(rsync) with my own copy
