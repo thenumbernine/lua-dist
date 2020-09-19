@@ -65,7 +65,7 @@ local function copyByDescTable(destDir, descTable)
 	for base, filesForBase in pairs(descTable) do
 		for _,file in ipairs(filesForBase) do
 			local src = base..'/'..file
-			if io.isdir(src) then
+			if os.isdir(src) then
 				copyDirToDir(src, destDir)
 			else
 				copyFileToDir(src, destDir)
