@@ -21,6 +21,6 @@ luaArgs = lua args, or
 
 files = key/value map where the keys is the base directory and the values are what files to copy
 - all directory structure other than the base is preserved in the copy
-- copes from `base/file to dist/data/directory/file`
+- copies from `base/file` to `dist/data/directory/file`
 
 luajitLibs = table of luajit libs to use, with platform-specific overrides similar to luaArgs
