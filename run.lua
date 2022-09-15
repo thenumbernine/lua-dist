@@ -65,7 +65,7 @@ local function copyByDescTable(destDir, descTable)
 	for base, filesForBase in pairs(descTable) do
 		for _,file in ipairs(filesForBase) do
 			local src = base..'/'..file
-			if os.isdir(src) then
+			if file(src):isdir() then
 				copyDirToDir(src, destDir)
 			else
 				copyFileToDir(src, destDir)
@@ -103,19 +103,20 @@ local function makeWin(arch)
 
 -- TODO for now windows runs with no audio and no editor.  eventually add OpenAL and C/ImGui support. 
 	local runBat = osDir..'/run.bat'
-	file[runBat] = table{
-		'cd data',
-		[[set PATH=%PATH%;bin\Windows\]]..arch,
-		[[set LUA_PATH=./?.lua;./?/?.lua]],
-	}:append(
-		luaDistVer == 'luajit' and {'set LUAJIT_LIBPATH=.'} or {}
-	):append{
-		'bin\\Windows\\'..arch..'\\'..luaDistVer..'.exe '
-			..(getLuaArgs'win' or '')
-			..' > out.txt 2> err.txt',
-		'cd ..'
-	}:concat'\n'..'\n'
-
+	file(runBat):write(
+		table{
+			'cd data',
+			[[set PATH=%PATH%;bin\Windows\]]..arch,
+			[[set LUA_PATH=./?.lua;./?/?.lua]],
+		}:append(
+			luaDistVer == 'luajit' and {'set LUAJIT_LIBPATH=.'} or {}
+		):append{
+			'bin\\Windows\\'..arch..'\\'..luaDistVer..'.exe '
+				..(getLuaArgs'win' or '')
+				..' > out.txt 2> err.txt',
+			'cd ..'
+		}:concat'\n'..'\n'
+	)
 	local dataDir = osDir..'/data'
 	mkdir(dataDir)
 	mkdir(dataDir..'/bin')
@@ -147,8 +148,8 @@ local function makeOSX()
 	mkdir(osDir..'/'..name..'.app')
 	local contentsDir = osDir..'/'..name..'.app/Contents'
 	mkdir(contentsDir)
-	file[contentsDir..'/PkgInfo'] = 'APPLhect'
-	file[contentsDir..'/Info.plist'] = [[
+	file(contentsDir..'/PkgInfo'):write'APPLhect'
+	file(contentsDir..'/Info.plist'):write([[
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -178,26 +179,28 @@ local function makeOSX()
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
 </dict>
-</plist>]]
+</plist>]])
 
 	local macOSDir = contentsDir..'/MacOS'
 	mkdir(macOSDir)
 
 	-- lemme double check the dir structure on this ...
 	local runSh = macOSDir..'/run.sh' 
-	file[runSh] = table{
-		[[#!/usr/bin/env bash]],
-		-- https://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
-		[[DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"]],
-		[[cd $DIR/../Resources]],
-		[[export LUA_PATH="./?.lua;./?/?.lua"]],
-	}:append(
-		luaDistVer == 'luajit' and {'export LUAJIT_LIBPATH="."'} or {}
-	):append{
-		'./'..luaDistVer..' '
-			..(getLuaArgs'osx' or '')
-			..' > out.txt 2> err.txt',
-	}:concat'\n'..'\n'
+	file(runSh):write(
+		table{
+			[[#!/usr/bin/env bash]],
+			-- https://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
+			[[DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"]],
+			[[cd $DIR/../Resources]],
+			[[export LUA_PATH="./?.lua;./?/?.lua"]],
+		}:append(
+			luaDistVer == 'luajit' and {'export LUAJIT_LIBPATH="."'} or {}
+		):append{
+			'./'..luaDistVer..' '
+				..(getLuaArgs'osx' or '')
+				..' > out.txt 2> err.txt',
+		}:concat'\n'..'\n'
+	)
 	exec('chmod +x '..runSh)
 
 	local resourcesDir = contentsDir..'/Resources'
@@ -230,17 +233,19 @@ local function makeLinux(arch)
 	
 	local runSh = osDir..'/run.sh'
 	
-	file[runSh] = table{
-		[[#!/usr/bin/env bash]],
-		'cd data',
-		[[export LUA_PATH="./?.lua;./?/?.lua"]],
-	}:append(
-		luaDistVer == 'luajit' and {'export LUAJIT_LIBPATH="."'} or {}
-	):append{
-		'bin/Linux/'..arch..'/'..luaDistVer..' '
-			..(getLuaArgs'linux' or '')
-			..' > out.txt 2> err.txt',
-	}:concat'\n'..'\n'
+	file(runSh):write(
+		table{
+			[[#!/usr/bin/env bash]],
+			'cd data',
+			[[export LUA_PATH="./?.lua;./?/?.lua"]],
+		}:append(
+			luaDistVer == 'luajit' and {'export LUAJIT_LIBPATH="."'} or {}
+		):append{
+			'bin/Linux/'..arch..'/'..luaDistVer..' '
+				..(getLuaArgs'linux' or '')
+				..' > out.txt 2> err.txt',
+		}:concat'\n'..'\n'
+	)
 	exec('chmod +x '..runSh)
 
 	local dataDir = osDir..'/data'
