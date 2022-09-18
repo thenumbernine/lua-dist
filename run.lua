@@ -26,9 +26,7 @@ local function fixpath(path)
 end
 
 local function mkdir(dir)
-	local cmd = 'mkdir '..fixpath(dir)
-	print(cmd)
-	os.execute(cmd)
+	return file(dir):mkdir()
 end
 
 local function exec(cmd)
