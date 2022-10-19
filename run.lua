@@ -61,8 +61,8 @@ end
 
 local function copyByDescTable(destDir, descTable)
 	for base, filesForBase in pairs(descTable) do
-		for _,file in ipairs(filesForBase) do
-			local src = base..'/'..file
+		for _,fn in ipairs(filesForBase) do
+			local src = base..'/'..fn
 			if file(src):isdir() then
 				copyDirToDir(src, destDir)
 			else
@@ -293,6 +293,6 @@ end
 mkdir('dist')
 if target == 'all' or target == 'osx' then makeOSX() end
 if target == 'all' or target == 'win32' then makeWin('x86') end
---if target == 'all' or target == 'win64' then makeWin('x64') end -- ufo only runs the 64 bit versions for amd ...
+if target == 'all' or target == 'win64' then makeWin('x64') end
 if target == 'all' or target == 'linux' then makeLinux('x64') end
 if target == 'all' or target == 'webserver' then makeWebServer() end

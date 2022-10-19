@@ -9,7 +9,7 @@
 - That's all I've got for now.  maybe an Android version will come someday, based on the jni SDL + luajit build of android.
 
 usage: `/path/to/dist/run.lua [platform]`
-	where platform is all or one of the following: osx, win32, win64
+	where platform is all or one of the following: osx, win32, win64, linux
 
 requires a distinfo file
 
