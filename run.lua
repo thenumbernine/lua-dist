@@ -14,7 +14,7 @@ assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
 assert(files)
 
-local projectsDir = os.getenv'HOME'..'/Projects/lua'
+local projectsDir = os.getenv'LUA_PROJECT_PATH'
 local ufoDir = projectsDir..'/ufo' 
 
 local function fixpath(path)
