@@ -2,7 +2,7 @@
 -- script to make an .app package
 -- I'm using luajit for its ffi.os and ffi.arch variables
 
-local target = ...
+local target = ... or 'all'
 
 -- global namespace so distinfo can see it
 ffi = require 'ffi'
@@ -15,7 +15,7 @@ assert(name)
 assert(files)
 
 local projectsDir = os.getenv'LUA_PROJECT_PATH'
-local ufoDir = projectsDir..'/ufo' 
+local ufoDir = projectsDir..'/../other/ufo'
 
 local function fixpath(path)
 	if ffi.os == 'Windows' then
@@ -31,9 +31,7 @@ end
 
 local function exec(cmd)
 	print(cmd)
-	--assert(
-	print(os.execute(cmd))
-	--)
+	assert(os.execute(cmd))
 end
 
 -- TODO replace all exec(cp) and exec(rsync) with my own copy
@@ -60,7 +58,12 @@ local function copyDirToDir(srcdir, dstdir, pattern)
 end
 
 local function copyByDescTable(destDir, descTable)
+	assert(type(destDir) == 'string')
+	assert(type(descTable) == 'table')
 	for base, filesForBase in pairs(descTable) do
+		if type(filesForBase) ~= 'table' then
+			error("failed on destDir "..destDir.." got descTable "..require 'ext.tolua'(descTable))
+		end
 		for _,fn in ipairs(filesForBase) do
 			local src = base..'/'..fn
 			if file(src):isdir() then
@@ -77,10 +80,10 @@ local function copyBody(destDir)
 	copyByDescTable(destDir, files)
 end
 
--- returns t[plat], t[1], or t, depending on which exists and is a table 
+-- returns t[plat], t[1], or t, depending on which exists and is a table
 local function getForPlat(t, plat, reqtype)
 	if not t then return end
-	return t[plat] 
+	return t[plat]
 		or (type(t[1]) == reqtype and t[1] or t)
 end
 
@@ -99,7 +102,7 @@ local function makeWin(arch)
 	local osDir = 'dist/win'..bits
 	mkdir(osDir)
 
--- TODO for now windows runs with no audio and no editor.  eventually add OpenAL and C/ImGui support. 
+-- TODO for now windows runs with no audio and no editor.  eventually add OpenAL and C/ImGui support.
 	local runBat = osDir..'/run.bat'
 	file(runBat):write(
 		table{
@@ -121,10 +124,10 @@ local function makeWin(arch)
 	mkdir(dataDir..'/bin/Windows')
 	local binDir = dataDir..'/bin/Windows/'..arch
 	mkdir(binDir)
-	
+
 	-- copy luajit
 	copyFileToDir(ufoDir..'/bin/Windows/'..arch..'/'..luaDistVer..'.exe', binDir)
-	
+
 	-- copy body
 	copyBody(dataDir)
 
@@ -183,7 +186,7 @@ local function makeOSX()
 	mkdir(macOSDir)
 
 	-- lemme double check the dir structure on this ...
-	local runSh = macOSDir..'/run.sh' 
+	local runSh = macOSDir..'/run.sh'
 	file(runSh):write(
 		table{
 			[[#!/usr/bin/env bash]],
@@ -210,7 +213,7 @@ local function makeOSX()
 
 	-- copy body
 	copyBody(resourcesDir)
-	
+
 	-- ffi osx so's
 	local osxLuajitLibs = getLuajitLibs'osx'
 	if osxLuajitLibs then
@@ -228,9 +231,9 @@ local function makeLinux(arch)
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
 	local osDir = 'dist/linux'..bits
 	mkdir(osDir)
-	
+
 	local runSh = osDir..'/run.sh'
-	
+
 	file(runSh):write(
 		table{
 			[[#!/usr/bin/env bash]],
@@ -248,17 +251,24 @@ local function makeLinux(arch)
 
 	local dataDir = osDir..'/data'
 	mkdir(dataDir)
-	
+
 	local linuxLuajitLibs = getLuajitLibs'linux'
+	local binDir
 	if includeLuaBinary or linuxLuajitLibs then
 		mkdir(dataDir..'/bin')
 		mkdir(dataDir..'/bin/Linux')
-		local binDir = dataDir..'/bin/Linux/'..arch
+		binDir = dataDir..'/bin/Linux/'..arch
 		mkdir(binDir)
-	end	
+	end
 		-- copy luajit
 	if includeLuaBinary then
+		--[[ I don't think I'm using UFO anymore...
 		copyFileToDir(ufoDir..'/bin/Linux/'..arch..'/'..luaDistVer, binDir)
+		--]]
+		-- [[
+		local luajitPath = io.readproc'which luajit':trim()
+		copyFileToDir(luajitPath, binDir)
+		--]]
 	end
 
 	-- copy body
@@ -267,6 +277,7 @@ local function makeLinux(arch)
 	-- copy ffi linux so's
 	if linuxLuajitLibs then
 		for _,fn in ipairs(linuxLuajitLibs) do
+			-- TODO hmmmm ....
 			copyFileToDir(ufoDir..'/bin/Linux/'..arch..'/'..fn..'.so', binDir)
 		end
 	end
@@ -282,7 +293,7 @@ local function makeWebServer()
 	-- copy launch scripts
 	assert(launchScripts, "expected launchScripts")
 	copyByDescTable(osDir, launchScripts)
-	
+
 	local dataDir = osDir..'/data'
 	mkdir(dataDir)
 
@@ -295,4 +306,5 @@ if target == 'all' or target == 'osx' then makeOSX() end
 if target == 'all' or target == 'win32' then makeWin('x86') end
 if target == 'all' or target == 'win64' then makeWin('x64') end
 if target == 'all' or target == 'linux' then makeLinux('x64') end
-if target == 'all' or target == 'webserver' then makeWebServer() end
+-- hmm ... I'll finish that lazy hack later
+--if target == 'all' or target == 'webserver' then makeWebServer() end
