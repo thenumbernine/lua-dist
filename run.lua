@@ -20,11 +20,14 @@ local projectsDir = os.getenv'LUA_PROJECT_PATH'
 --local ufoDir = projectsDir..'/../other/ufo'
 -- where to find and copy luajit executable binary from
 local luaBinDirs = {
-	Windows = homeDir..'/bin/x64',
+	Windows = homeDir..'\\bin\\x64',
 }
 -- where to find and copy dlls/so/dylibs from
 local libDirs = {
-	Windows = projectsDir..'/bin/Windows',
+	Windows = {
+		homeDir..'\\bin',
+		projectsDir..'\\bin\\Windows',
+	},
 }
 
 local function fixpath(path)
@@ -140,6 +143,7 @@ local function makeWin(arch)
 
 	-- copy luajit
 	copyFileToDir(luaBinDirs.Windows..'/'..luaDistVer..'.exe', binDir)
+	copyFileToDir(luaBinDirs.Windows..'/luajit-2.1.0-beta3.dll', binDir)
 
 	-- copy body
 	copyBody(dataDir)
@@ -147,9 +151,21 @@ local function makeWin(arch)
 	-- copy ffi windows dlls's
 	local winLuajitLibs = getLuajitLibs'win'
 	if winLuajitLibs then
-		for _,fn in ipairs(winLuajitLibs) do
+		for _,basefn in ipairs(winLuajitLibs) do
 			for _,ext in ipairs{'dll','lib'} do
-				copyFileToDir(libDirs.Windows..'/'..arch..'/'..fn..'.'..ext, binDir)
+				local fn = basefn..'.'..ext
+				local found
+				for _,srcdir in ipairs(libDirs.Windows) do
+					local srcfn = srcdir..'\\'..arch..'\\'..fn
+					if file(srcfn):exists() then
+						copyFileToDir(srcfn, binDir)
+						found = true
+						break
+					end
+				end
+				if not found then
+					print("couldn't find library "..fn.." in paths "..tolua(libDirs.Windows))
+				end
 			end
 		end
 	end
