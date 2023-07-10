@@ -30,16 +30,13 @@ local libDirs = {
 	},
 }
 
+-- TODO use ext.file
 local function fixpath(path)
 	if ffi.os == 'Windows' then
 		return path:gsub('/','\\')
 	else
 		return path
 	end
-end
-
-local function mkdir(dir)
-	return file(dir):mkdir()
 end
 
 local function exec(cmd)
@@ -113,12 +110,11 @@ end
 local function makeWin(arch)
 	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
-	local osDir = 'dist/win'..bits
-	mkdir(osDir)
+	local osDir = 'dist/'..name..'-win'..bits
+	file(osDir):mkdir()
 
 -- TODO for now windows runs with no audio and no editor.  eventually add OpenAL and C/ImGui support.
-	local runBat = osDir..'/run.bat'
-	file(runBat):write(
+	file(osDir..'/setupenv.bat'):write(
 		table{
 			'setlocal',
 			'cd data',
@@ -132,14 +128,33 @@ local function makeWin(arch)
 				..' > ..\\out.txt 2> ..\\err.txt',
 			'cd ..',
 			'endlocal',
-		}:concat'\n'..'\n'
+		}:concat'\r\n'..'\r\n'
 	)
+	
+	--exec('shortcut /f:"'..(file(osDir)'run.lnk'):fixpathsep()..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
+	-- https://stackoverflow.com/a/30029955 
+	-- should I finally switch from .bat to .ps1?
+	-- don't use exec cuz it gsub's all /'s to \'s ... which it wouldn't need to do if i just always called fixpath everywhere ... TODO
+	-- TODO escaping ... i think it saves the lnk with *MY* COMSPEC, not the string "%COMSPEC%"
+	-- looks like putting a '+' in the string prevents the %'s from being used as env var delimiters ...
+	-- but still it wraps the TargetPath with "'s
+	--  one answer says put this after the string: -replace "`"|'" 
+	-- but doesn't seem to help
+	-- it seems if the file is already there then powershell will modify it and append the targetpath instead of writing a new link so ...
+	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
+	local linkPath = file(osDir)'run.lnk'
+	linkPath:remove()
+	local cmd = [[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath:fixpathsep()..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c setupenv.bat';$s.Save()"]]
+	--local cmd = [[powershell "New-Item -ItemType SymbolicLink -Path ']]..file(osDir):fixpathsep()..[[' -Name run.lnk -Value '%COMSPEC% /c setupenv.bat'"]]
+	print(cmd)
+	os.execute(cmd)
+
 	local dataDir = osDir..'/data'
-	mkdir(dataDir)
-	mkdir(dataDir..'/bin')
-	mkdir(dataDir..'/bin/Windows')
+	file(dataDir):mkdir()
+	file(dataDir..'/bin'):mkdir()
+	file(dataDir..'/bin/Windows'):mkdir()
 	local binDir = dataDir..'/bin/Windows/'..arch
-	mkdir(binDir)
+	file(binDir):mkdir()
 
 	-- copy luajit
 	copyFileToDir(luaBinDirs.Windows..'/'..luaDistVer..'.exe', binDir)
@@ -174,10 +189,10 @@ end
 local function makeOSX()
 	-- the osx-specific stuff:
 	local osDir = 'dist/osx'
-	mkdir(osDir)
-	mkdir(osDir..'/'..name..'.app')
+	file(osDir):mkdir()
+	file(osDir..'/'..name..'.app'):mkdir()
 	local contentsDir = osDir..'/'..name..'.app/Contents'
-	mkdir(contentsDir)
+	file(contentsDir):mkdir()
 	file(contentsDir..'/PkgInfo'):write'APPLhect'
 	file(contentsDir..'/Info.plist'):write([[
 <?xml version="1.0" encoding="UTF-8"?>
@@ -212,7 +227,7 @@ local function makeOSX()
 </plist>]])
 
 	local macOSDir = contentsDir..'/MacOS'
-	mkdir(macOSDir)
+	file(macOSDir):mkdir()
 
 	-- lemme double check the dir structure on this ...
 	local runSh = macOSDir..'/run.sh'
@@ -234,7 +249,7 @@ local function makeOSX()
 	exec('chmod +x '..runSh)
 
 	local resourcesDir = contentsDir..'/Resources'
-	mkdir(resourcesDir)
+	file(resourcesDir):mkdir()
 
 	-- copy luajit
 	local luajitPath = io.readproc('which '..luaDistVer):trim()
@@ -246,8 +261,8 @@ local function makeOSX()
 	-- ffi osx so's
 	local osxLuajitLibs = getLuajitLibs'osx'
 	if osxLuajitLibs then
-		mkdir(resourcesDir..'/bin')
-		mkdir(resourcesDir..'/bin/OSX')
+		file(resourcesDir..'/bin'):mkdir()
+		file(resourcesDir..'/bin/OSX'):mkdir()
 		for _,fn in ipairs(osxLuajitLibs) do
 			exec('cp "'..projectsDir..'/bin/OSX/'..fn..'.dylib" "'..resourcesDir..'/bin/OSX"')
 		end
@@ -259,7 +274,7 @@ local function makeLinux(arch)
 	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
 	local osDir = 'dist/linux'..bits
-	mkdir(osDir)
+	file(osDir):mkdir()
 
 	local runSh = osDir..'/run.sh'
 
@@ -279,15 +294,15 @@ local function makeLinux(arch)
 	exec('chmod +x '..runSh)
 
 	local dataDir = osDir..'/data'
-	mkdir(dataDir)
+	file(dataDir):mkdir()
 
 	local linuxLuajitLibs = getLuajitLibs'linux'
 	local binDir
 	if includeLuaBinary or linuxLuajitLibs then
-		mkdir(dataDir..'/bin')
-		mkdir(dataDir..'/bin/Linux')
+		file(dataDir..'/bin'):mkdir()
+		file(dataDir..'/bin/Linux'):mkdir()
 		binDir = dataDir..'/bin/Linux/'..arch
-		mkdir(binDir)
+		file(binDir):mkdir()
 	end
 		-- copy luajit
 	if includeLuaBinary then
@@ -317,20 +332,20 @@ end
 local function makeWebServer()
 	assert(luaDistVer ~= 'luajit', "not supported just yet")
 	local osDir = 'dist/webserver'
-	mkdir(osDir)
+	file(osDir):mkdir()
 
 	-- copy launch scripts
 	assert(launchScripts, "expected launchScripts")
 	copyByDescTable(osDir, launchScripts)
 
 	local dataDir = osDir..'/data'
-	mkdir(dataDir)
+	file(dataDir):mkdir()
 
 	-- copy body
 	copyBody(dataDir)
 end
 
-mkdir('dist')
+file'dist':mkdir()
 if target == 'all' or target == 'osx' then makeOSX() end
 if target == 'all' or target == 'win32' then makeWin('x86') end
 if target == 'all' or target == 'win64' then makeWin('x64') end
