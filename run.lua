@@ -14,8 +14,18 @@ assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
 assert(files)
 
+local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
 local projectsDir = os.getenv'LUA_PROJECT_PATH'
-local ufoDir = projectsDir..'/../other/ufo'
+-- moving away from malkia ufo
+--local ufoDir = projectsDir..'/../other/ufo'
+-- where to find and copy luajit executable binary from
+local luaBinDirs = {
+	Windows = homeDir..'/bin/x64',
+}
+-- where to find and copy dlls/so/dylibs from
+local libDirs = {
+	Windows = projectsDir..'/bin/Windows',
+}
 
 local function fixpath(path)
 	if ffi.os == 'Windows' then
@@ -40,20 +50,21 @@ end
 local function copyFileToDir(srcfile,dstdir)
 	if ffi.os == 'Windows' then
 		-- /Y means suppress error on overwriting files
-		exec('copy '..fixpath(srcfile)..' '..fixpath(dstdir)..' /Y')
+		exec('copy "'..fixpath(srcfile)..'" "'..fixpath(dstdir)..'" /Y')
 	else
-		exec('cp '..srcfile..' '..dstdir)
+		exec('cp "'..srcfile..'" "'..dstdir..'"')
 	end
 end
 
 -- TODO ignore hidden files, or at least just skip the .git folders
 local function copyDirToDir(srcdir, dstdir, pattern)
+	local srcname = srcdir:split'/':last()
 	pattern = pattern or '*'
 	if ffi.os == 'Windows' then
-		exec('xcopy '..fixpath(srcdir)..'\\'..pattern..' '..fixpath(dstdir..'/'..srcdir)..' /E /I /Y')
+		exec('xcopy "'..fixpath(srcdir)..'\\'..pattern..'" "'..fixpath(dstdir..'/'..srcname)..'" /E /I /Y')
 	else
 		--exec('cp -R '..srcdir..' '..dstdir)
-		exec("rsync -avm --exclude='.*' --include='"..pattern.."' -f 'hide,! */' "..srcdir.." "..dstdir)
+		exec("rsync -avm --exclude='.*' --include='"..pattern.."' -f 'hide,! */' '"..srcname.."' '"..dstdir.."'")
 	end
 end
 
@@ -106,6 +117,7 @@ local function makeWin(arch)
 	local runBat = osDir..'/run.bat'
 	file(runBat):write(
 		table{
+			'setlocal',
 			'cd data',
 			[[set PATH=%PATH%;bin\Windows\]]..arch,
 			[[set LUA_PATH=./?.lua;./?/?.lua]],
@@ -115,7 +127,8 @@ local function makeWin(arch)
 			'bin\\Windows\\'..arch..'\\'..luaDistVer..'.exe '
 				..(getLuaArgs'win' or '')
 				..' > out.txt 2> err.txt',
-			'cd ..'
+			'cd ..',
+			'endlocal',
 		}:concat'\n'..'\n'
 	)
 	local dataDir = osDir..'/data'
@@ -126,7 +139,7 @@ local function makeWin(arch)
 	mkdir(binDir)
 
 	-- copy luajit
-	copyFileToDir(ufoDir..'/bin/Windows/'..arch..'/'..luaDistVer..'.exe', binDir)
+	copyFileToDir(luaBinDirs.Windows..'/'..luaDistVer..'.exe', binDir)
 
 	-- copy body
 	copyBody(dataDir)
@@ -136,7 +149,7 @@ local function makeWin(arch)
 	if winLuajitLibs then
 		for _,fn in ipairs(winLuajitLibs) do
 			for _,ext in ipairs{'dll','lib'} do
-				copyFileToDir(ufoDir..'/bin/Windows/'..arch..'/'..fn..'.'..ext, binDir)
+				copyFileToDir(libDirs.Windows..'/'..arch..'/'..fn..'.'..ext, binDir)
 			end
 		end
 	end
@@ -209,7 +222,7 @@ local function makeOSX()
 
 	-- copy luajit
 	local luajitPath = io.readproc('which '..luaDistVer):trim()
-	exec('cp '..luajitPath..' '..resourcesDir)
+	exec('cp "'..luajitPath..'" "'..resourcesDir..'"')
 
 	-- copy body
 	copyBody(resourcesDir)
@@ -220,7 +233,7 @@ local function makeOSX()
 		mkdir(resourcesDir..'/bin')
 		mkdir(resourcesDir..'/bin/OSX')
 		for _,fn in ipairs(osxLuajitLibs) do
-			exec('cp '..projectsDir..'/bin/OSX/'..fn..'.dylib '..resourcesDir..'/bin/OSX')
+			exec('cp "'..projectsDir..'/bin/OSX/'..fn..'.dylib" "'..resourcesDir..'/bin/OSX"')
 		end
 	end
 end
