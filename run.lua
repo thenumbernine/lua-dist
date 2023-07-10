@@ -126,7 +126,7 @@ local function makeWin(arch)
 		):append{
 			'bin\\Windows\\'..arch..'\\'..luaDistVer..'.exe '
 				..(getLuaArgs'win' or '')
-				..' > out.txt 2> err.txt',
+				..' > ..\\out.txt 2> ..\\err.txt',
 			'cd ..',
 			'endlocal',
 		}:concat'\n'..'\n'
