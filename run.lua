@@ -21,13 +21,14 @@ local projectsDir = os.getenv'LUA_PROJECT_PATH'
 --local ufoDir = projectsDir..'/../other/ufo'
 -- where to find and copy luajit executable binary from
 local luaBinDirs = {
-	Windows = homeDir..'\\bin\\x64',
+	Windows = homeDir..'\\bin\\'..ffi.arch,
 }
 -- where to find and copy dlls/so/dylibs from
 local libDirs = {
 	Windows = {
-		homeDir..'\\bin',
-		projectsDir..'\\bin\\Windows',
+		homeDir..'\\bin\\'..ffi.arch,
+		projectsDir..'\\bin\\Windows\\'..ffi.arch,
+		'C:\\Windows\\System32',
 	},
 	Linux = {
 		'/usr/local/lib',
@@ -173,11 +174,14 @@ local function makeWin(arch)
 	local libs = getLuajitLibs'win'
 	if libs then
 		for _,basefn in ipairs(libs) do
-			for _,ext in ipairs{'dll','lib'} do
+			for _,ext in ipairs{
+				'dll',
+				--'lib',	-- I don't need this, do I?
+			} do
 				local fn = basefn..'.'..ext
 				local found
 				for _,srcdir in ipairs(libDirs.Windows) do
-					local srcfn = srcdir..'\\'..arch..'\\'..fn
+					local srcfn = srcdir..'\\'..fn
 					if file(srcfn):exists() then
 						copyFileToDir(srcfn, binDir)
 						found = true
