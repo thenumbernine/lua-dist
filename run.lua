@@ -8,6 +8,7 @@ local target = ... or 'all'
 ffi = require 'ffi'
 require 'ext'
 
+-- hmm just always do this?
 includeLuaBinary = true
 
 assert(loadfile('distinfo', 'bt', _G))()
@@ -27,6 +28,10 @@ local libDirs = {
 	Windows = {
 		homeDir..'\\bin',
 		projectsDir..'\\bin\\Windows',
+	},
+	Linux = {
+		'/usr/local/lib',
+		'/usr/lib/x86_64-linux-gnu',
 	},
 }
 
@@ -130,15 +135,15 @@ local function makeWin(arch)
 			'endlocal',
 		}:concat'\r\n'..'\r\n'
 	)
-	
+
 	--exec('shortcut /f:"'..(file(osDir)'run.lnk'):fixpathsep()..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
-	-- https://stackoverflow.com/a/30029955 
+	-- https://stackoverflow.com/a/30029955
 	-- should I finally switch from .bat to .ps1?
 	-- don't use exec cuz it gsub's all /'s to \'s ... which it wouldn't need to do if i just always called fixpath everywhere ... TODO
 	-- TODO escaping ... i think it saves the lnk with *MY* COMSPEC, not the string "%COMSPEC%"
 	-- looks like putting a '+' in the string prevents the %'s from being used as env var delimiters ...
 	-- but still it wraps the TargetPath with "'s
-	--  one answer says put this after the string: -replace "`"|'" 
+	--  one answer says put this after the string: -replace "`"|'"
 	-- but doesn't seem to help
 	-- it seems if the file is already there then powershell will modify it and append the targetpath instead of writing a new link so ...
 	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
@@ -164,9 +169,10 @@ local function makeWin(arch)
 	copyBody(dataDir)
 
 	-- copy ffi windows dlls's
-	local winLuajitLibs = getLuajitLibs'win'
-	if winLuajitLibs then
-		for _,basefn in ipairs(winLuajitLibs) do
+	-- same as Linux
+	local libs = getLuajitLibs'win'
+	if libs then
+		for _,basefn in ipairs(libs) do
 			for _,ext in ipairs{'dll','lib'} do
 				local fn = basefn..'.'..ext
 				local found
@@ -259,11 +265,11 @@ local function makeOSX()
 	copyBody(resourcesDir)
 
 	-- ffi osx so's
-	local osxLuajitLibs = getLuajitLibs'osx'
-	if osxLuajitLibs then
+	local libs = getLuajitLibs'osx'
+	if libs then
 		file(resourcesDir..'/bin'):mkdir()
 		file(resourcesDir..'/bin/OSX'):mkdir()
-		for _,fn in ipairs(osxLuajitLibs) do
+		for _,fn in ipairs(libs) do
 			exec('cp "'..projectsDir..'/bin/OSX/'..fn..'.dylib" "'..resourcesDir..'/bin/OSX"')
 		end
 	end
@@ -273,20 +279,33 @@ end
 local function makeLinux(arch)
 	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
-	local osDir = 'dist/linux'..bits
+	local osDir = 'dist/'..name..'-linux'..bits
 	file(osDir):mkdir()
 
 	local runSh = osDir..'/run.sh'
+
+	-- hmmm hmmmmm
+	-- my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
+	assert(luaDistVer == 'luajit')
+	local realLuaDistVer = 'luajit-openresty-2.1.0'
 
 	file(runSh):write(
 		table{
 			[[#!/usr/bin/env bash]],
 			'cd data',
 			[[export LUA_PATH="./?.lua;./?/?.lua"]],
+			-- this is binDir relative to dataDir
+			-- this line is needed for ffi's load to work
+			-- TODO get rid of luajit-ffi-bindings's use of LUAJIT_LIBPATH ?
+			-- and just use this instead?
+			[[export LD_LIBRARY_PATH="bin/Linux/]]..arch..[["]]
 		}:append(
-			luaDistVer == 'luajit' and {'export LUAJIT_LIBPATH="."'} or {}
+			luaDistVer == 'luajit' and {
+				'export LUAJIT_LIBPATH="."'
+			} or {}
 		):append{
-			'bin/Linux/'..arch..'/'..luaDistVer..' '
+			-- this is binDir relative to dataDir
+			'bin/Linux/'..arch..'/'..realLuaDistVer..' '
 				..(getLuaArgs'linux' or '')
 				..' > ../out.txt 2> ../err.txt',
 		}:concat'\n'..'\n'
@@ -296,9 +315,9 @@ local function makeLinux(arch)
 	local dataDir = osDir..'/data'
 	file(dataDir):mkdir()
 
-	local linuxLuajitLibs = getLuajitLibs'linux'
+	local libs = getLuajitLibs'linux'
 	local binDir
-	if includeLuaBinary or linuxLuajitLibs then
+	if includeLuaBinary or libs then
 		file(dataDir..'/bin'):mkdir()
 		file(dataDir..'/bin/Linux'):mkdir()
 		binDir = dataDir..'/bin/Linux/'..arch
@@ -309,9 +328,12 @@ local function makeLinux(arch)
 		--[[ I don't think I'm using UFO anymore...
 		copyFileToDir(ufoDir..'/bin/Linux/'..arch..'/'..luaDistVer, binDir)
 		--]]
-		-- [[
+		--[[
 		local luajitPath = io.readproc'which luajit':trim()
 		copyFileToDir(luajitPath, binDir)
+		--]]
+		-- [[
+		copyFileToDir('/usr/local/bin/'..realLuaDistVer, binDir)
 		--]]
 	end
 
@@ -319,10 +341,22 @@ local function makeLinux(arch)
 	copyBody(dataDir)
 
 	-- copy ffi linux so's
-	if linuxLuajitLibs then
-		for _,fn in ipairs(linuxLuajitLibs) do
-			-- TODO hmmmm ....
-			copyFileToDir(ufoDir..'/bin/Linux/'..arch..'/'..fn..'.so', binDir)
+	-- same as Windows
+	if libs then
+		for _,basefn in ipairs(libs) do
+			local fn = 'lib'..basefn..'.so'
+			local found
+			for _,srcdir in ipairs(libDirs.Linux) do
+				local srcfn = srcdir..'/'..fn
+				if file(srcfn):exists() then
+					copyFileToDir(srcfn, binDir)
+					found = true
+					break
+				end
+			end
+			if not found then
+				print("couldn't find library "..fn.." in paths "..tolua(libDirs.Linux))
+			end
 		end
 	end
 end
