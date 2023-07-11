@@ -64,7 +64,7 @@ local function copyDirToDir(srcdir, dstdir, pattern)
 		exec('xcopy "'..fixpath(srcdir)..'\\'..pattern..'" "'..fixpath(dstdir..'/'..srcname)..'" /E /I /Y')
 	else
 		--exec('cp -R '..srcdir..' '..dstdir)
-		exec("rsync -avm --exclude='.*' --include='"..pattern.."' -f 'hide,! */' '"..srcname.."' '"..dstdir.."'")
+		exec("rsync -avm --exclude='.*' --include='"..pattern.."' -f 'hide,! */' '"..fixpath(srcdir).."' '"..dstdir.."'")
 	end
 end
 
@@ -288,7 +288,7 @@ local function makeLinux(arch)
 		):append{
 			'bin/Linux/'..arch..'/'..luaDistVer..' '
 				..(getLuaArgs'linux' or '')
-				..' > out.txt 2> err.txt',
+				..' > ../out.txt 2> ../err.txt',
 		}:concat'\n'..'\n'
 	)
 	exec('chmod +x '..runSh)
