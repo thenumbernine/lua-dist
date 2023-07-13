@@ -220,7 +220,8 @@ local function makeWin(arch)
 		for _,basefn in ipairs(libs) do
 			for _,ext in ipairs{
 				'dll',
-				--'lib',	-- I don't need this, do I?
+				-- I don't need this, do I?
+				--'lib',
 			} do
 				local fn = basefn..'.'..ext
 				local found
