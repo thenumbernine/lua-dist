@@ -73,14 +73,7 @@ end
 -- or at least something that works on all OS's
 
 local function copyFileToDir(basedir, srcpath, dstdir)
-print'copyFileToDir'
-print('cwd', file:cwd())
-print('basedir', basedir)
-print('srcpath', srcpath)
-print('dstdir', dstdir)
 	local relsrcdir,srcfn = file(srcpath):getdir()
-print('relsrcdir', relsrcdir)
-print('srcfn', srcfn)
 	if ffi.os == 'Windows' then
 		-- TODO how about an 'isabsolute()' in ext.file (which I need to rename to 'ext.path' ...)
 		if srcpath:sub(2,3) == ':\\' then
