@@ -2,11 +2,30 @@
 -- script to make an .app package
 -- I'm using luajit for its ffi.os and ffi.arch variables
 
-local target = ... or 'all'
-
 -- global namespace so distinfo can see it
 ffi = require 'ffi'
 require 'ext'
+
+-- set 'all' to run all
+local target = ...
+if not target then
+	if ffi.os == 'Windows' then
+		if ffi.arch == 'x32' then
+			target = 'win32'
+		elseif ffi.arch == 'x64' then
+			target = 'win64'
+		else
+			error("unknown os/arch "..ffi.os..'/'..ffi.arch)
+		end
+	elseif ffi.os == 'Linux' then
+		target = 'linux'
+	elseif fi.os == 'OSX' then
+		target = 'osx'
+	else
+		error("unknown os/arch "..ffi.os..'/'..ffi.arch)
+	end
+end
+
 
 -- hmm just always do this?
 includeLuaBinary = true
@@ -27,7 +46,7 @@ local luaBinDirs = {
 local libDirs = {
 	Windows = {
 		homeDir..'\\bin\\'..ffi.arch,
-		projectsDir..'\\bin\\Windows\\'..ffi.arch,
+		projectsDir..'\\bin\\Windows\\'..ffi.arch,	-- has SDL2 in it at least...
 		'C:\\Windows\\System32',
 	},
 	Linux = {
@@ -53,12 +72,41 @@ end
 -- TODO replace all exec(cp) and exec(rsync) with my own copy
 -- or at least something that works on all OS's
 
-local function copyFileToDir(srcfile,dstdir)
+local function copyFileToDir(basedir, srcpath, dstdir)
+print'copyFileToDir'
+print('cwd', file:cwd())
+print('basedir', basedir)
+print('srcpath', srcpath)
+print('dstdir', dstdir)
+	local relsrcdir,srcfn = file(srcpath):getdir()
+print('relsrcdir', relsrcdir)
+print('srcfn', srcfn)
 	if ffi.os == 'Windows' then
+		-- TODO how about an 'isabsolute()' in ext.file (which I need to rename to 'ext.path' ...)
+		if srcpath:sub(2,3) == ':\\' then
+			-- worth complaining about?
+			--print("hmm how should I handle copying absolute paths to relative paths?\n".."got "..srcpath)
+			relsrcdir = '.'
+		end
+		(file(dstdir)/relsrcdir):mkdir(true)
 		-- /Y means suppress error on overwriting files
-		exec('copy "'..fixpath(srcfile)..'" "'..fixpath(dstdir)..'" /Y')
+		exec('copy "'
+			..fixpath((file(basedir)/srcpath).path)
+			..'" "'
+			..fixpath((file(dstdir)/relsrcdir).path)
+			..'" /Y')
 	else
-		exec('cp "'..srcfile..'" "'..dstdir..'"')
+		-- this is why luarocks requires you to map each individual files from-path to-path ...
+		-- maybe don't complain here and don't append the path ...
+		if srcpath:sub(1,1) == '/' then
+			--print("hmm how should I handle copying absolute paths to relative paths?\n".."got "..srcpath)
+			relsrcdir = '.'
+		end
+		exec('cp "'
+			..(file(basedir)/srcpath).path
+			..'" "'
+			..(file(dstdir)/relsrcdir).path
+			..'"')
 	end
 end
 
@@ -81,12 +129,13 @@ local function copyByDescTable(destDir, descTable)
 		if type(filesForBase) ~= 'table' then
 			error("failed on destDir "..destDir.." got descTable "..require 'ext.tolua'(descTable))
 		end
-		for _,fn in ipairs(filesForBase) do
-			local src = base..'/'..fn
-			if file(src):isdir() then
-				copyDirToDir(src, destDir)
+		for _,srcfn in ipairs(filesForBase) do
+			local srcpath = base..'/'..srcfn
+			assert(file(srcpath):exists(), "couldn't find "..srcpath)
+			if file(srcpath):isdir() then
+				copyDirToDir(srcpath, destDir)
 			else
-				copyFileToDir(src, destDir)
+				copyFileToDir(base, srcfn, destDir)
 			end
 		end
 	end
@@ -116,7 +165,8 @@ end
 local function makeWin(arch)
 	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
-	local osDir = 'dist/'..name..'-win'..bits
+	local distName = name..'-win'..bits
+	local osDir = 'dist/'..distName
 	file(osDir):mkdir()
 
 -- TODO for now windows runs with no audio and no editor.  eventually add OpenAL and C/ImGui support.
@@ -163,8 +213,8 @@ local function makeWin(arch)
 	file(binDir):mkdir()
 
 	-- copy luajit
-	copyFileToDir(luaBinDirs.Windows..'/'..luaDistVer..'.exe', binDir)
-	copyFileToDir(luaBinDirs.Windows..'/luajit-2.1.0-beta3.dll', binDir)
+	copyFileToDir(luaBinDirs.Windows, luaDistVer..'.exe', binDir)
+	copyFileToDir(luaBinDirs.Windows, 'luajit-2.1.0-beta3.dll', binDir)
 
 	-- copy body
 	copyBody(dataDir)
@@ -181,9 +231,8 @@ local function makeWin(arch)
 				local fn = basefn..'.'..ext
 				local found
 				for _,srcdir in ipairs(libDirs.Windows) do
-					local srcfn = srcdir..'\\'..fn
-					if file(srcfn):exists() then
-						copyFileToDir(srcfn, binDir)
+					if (file(srcdir)/fn):exists() then
+						copyFileToDir(srcdir, fn, binDir)
 						found = true
 						break
 					end
@@ -194,6 +243,10 @@ local function makeWin(arch)
 			end
 		end
 	end
+
+	-- now make the zip
+	file('dist/'..distName..'.zip'):remove()
+	exec('cd dist && tar -a -c -f "'..distName..'.zip" "'..distName..'"')
 end
 
 local function makeOSX()
@@ -331,14 +384,15 @@ local function makeLinux(arch)
 		-- copy luajit
 	if includeLuaBinary then
 		--[[ I don't think I'm using UFO anymore...
-		copyFileToDir(ufoDir..'/bin/Linux/'..arch..'/'..luaDistVer, binDir)
+		copyFileToDir(ufoDir..'/bin/Linux/'..arch, luaDistVer, binDir)
 		--]]
 		--[[
 		local luajitPath = io.readproc'which luajit':trim()
-		copyFileToDir(luajitPath, binDir)
+		local dir, name = file(luajitPath):getdir()
+		copyFileToDir(dir, name, binDir)
 		--]]
 		-- [[
-		copyFileToDir('/usr/local/bin/'..realLuaDistVer, binDir)
+		copyFileToDir('/usr/local/bin', realLuaDistVer, binDir)
 		--]]
 	end
 
@@ -352,9 +406,8 @@ local function makeLinux(arch)
 			local fn = 'lib'..basefn..'.so'
 			local found
 			for _,srcdir in ipairs(libDirs.Linux) do
-				local srcfn = srcdir..'/'..fn
-				if file(srcfn):exists() then
-					copyFileToDir(srcfn, binDir)
+				if (file(srcdir)/fn):exists() then
+					copyFileToDir(srcdir, fn, binDir)
 					found = true
 					break
 				end
