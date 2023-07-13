@@ -279,7 +279,8 @@ end
 local function makeLinux(arch)
 	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
-	local osDir = 'dist/'..name..'-linux'..bits
+	local distName = name..'-linux'..bits
+	local osDir = 'dist/'..distName
 	file(osDir):mkdir()
 
 	local runSh = osDir..'/run.sh'
@@ -359,6 +360,10 @@ local function makeLinux(arch)
 			end
 		end
 	end
+
+	-- now make the zip
+	file('dist/'..distName..'.zip'):remove()
+	exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
 end
 
 -- i'm using this for a webserver distributable that assumes the host has lua already installed
