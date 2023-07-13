@@ -102,11 +102,12 @@ print('srcfn', srcfn)
 			--print("hmm how should I handle copying absolute paths to relative paths?\n".."got "..srcpath)
 			relsrcdir = '.'
 		end
+		(file(dstdir)/relsrcdir):mkdir(true)
 		exec('cp "'
 			..(file(basedir)/srcpath).path
 			..'" "'
 			..(file(dstdir)/relsrcdir).path
-			..'"')
+			..'/"')
 	end
 end
 
