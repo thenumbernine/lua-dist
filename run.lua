@@ -55,15 +55,6 @@ local libDirs = {
 	},
 }
 
--- TODO use ext.path
-local function fixpath(pathstr)
-	if ffi.os == 'Windows' then
-		return pathstr:gsub('/','\\')
-	else
-		return pathstr
-	end
-end
-
 local function exec(cmd)
 	print(cmd)
 	assert(os.execute(cmd))
@@ -84,9 +75,9 @@ local function copyFileToDir(basedir, srcpath, dstdir)
 		(path(dstdir)/relsrcdir):mkdir(true)
 		-- /Y means suppress error on overwriting files
 		exec('copy "'
-			..fixpath((path(basedir)/srcpath).path)
+			..(path(basedir)/srcpath):fixpathsep()
 			..'" "'
-			..fixpath((path(dstdir)/relsrcdir).path)
+			..(path(dstdir)/relsrcdir):fixpathsep()
 			..'" /Y')
 	else
 		-- this is why luarocks requires you to map each individual files from-path to-path ...
@@ -97,22 +88,32 @@ local function copyFileToDir(basedir, srcpath, dstdir)
 		end
 		(path(dstdir)/relsrcdir):mkdir(true)
 		exec('cp "'
-			..(path(basedir)/srcpath).path
+			..(path(basedir)/srcpath):fixpathsep()
 			..'" "'
-			..(path(dstdir)/relsrcdir).path
+			..(path(dstdir)/relsrcdir):fixpathsep()
 			..'/"')
 	end
 end
 
 -- TODO ignore hidden files, or at least just skip the .git folders
-local function copyDirToDir(srcdir, dstdir, pattern)
-	local srcname = srcdir:split'/':last()
+local function copyDirToDir(basedir, srcdir, dstdir, pattern)
 	pattern = pattern or '*'
 	if ffi.os == 'Windows' then
-		exec('xcopy "'..fixpath(srcdir)..'\\'..pattern..'" "'..fixpath(dstdir..'/'..srcname)..'" /E /I /Y')
+		exec('xcopy "'
+			..(path(basedir)/srcdir):fixpathsep()
+			..'\\'..pattern
+			..'" "'
+			..(path(dstdir)/srcdir):fixpathsep()
+			..'" /E /I /Y')
 	else
 		--exec('cp -R '..srcdir..' '..dstdir)
-		exec("rsync -avm --exclude='.*' --include='"..pattern.."' -f 'hide,! */' '"..fixpath(srcdir).."' '"..dstdir.."'")
+		exec("rsync -avm --exclude='.*' --include='"
+			..pattern
+			.."' -f 'hide,! */' '"
+			..(path(basedir)/srcdir):fixpathsep()
+			.."' '"
+			..(path(dstdir)/srcdir/'..'):fixpathsep()..'/'
+			.."'")
 	end
 end
 
@@ -127,7 +128,7 @@ local function copyByDescTable(destDir, descTable)
 			local srcpath = base..'/'..srcfn
 			assert(path(srcpath):exists(), "couldn't find "..srcpath)
 			if path(srcpath):isdir() then
-				copyDirToDir(srcpath, destDir)
+				copyDirToDir(base, srcfn, destDir)
 			else
 				copyFileToDir(base, srcfn, destDir)
 			end
