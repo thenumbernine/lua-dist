@@ -36,8 +36,6 @@ assert(files)
 
 local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
 local projectsDir = os.getenv'LUA_PROJECT_PATH'
--- moving away from malkia ufo
---local ufoDir = projectsDir..'/../other/ufo'
 -- where to find and copy luajit executable binary from
 local luaBinDirs = {
 	Windows = homeDir..'\\bin\\'..ffi.arch,
@@ -46,7 +44,6 @@ local luaBinDirs = {
 local libDirs = {
 	Windows = {
 		homeDir..'\\bin\\'..ffi.arch,
-		projectsDir..'\\bin\\Windows\\'..ffi.arch,	-- has SDL2 in it at least...
 		'C:\\Windows\\System32',
 	},
 	Linux = {
@@ -194,10 +191,7 @@ local function makeWin(arch)
 	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
 	local linkPath = path(osDir)'run.lnk'
 	linkPath:remove()
-	local cmd = [[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath:fixpathsep()..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c setupenv.bat';$s.Save()"]]
-	--local cmd = [[powershell "New-Item -ItemType SymbolicLink -Path ']]..path(osDir):fixpathsep()..[[' -Name run.lnk -Value '%COMSPEC% /c setupenv.bat'"]]
-	print(cmd)
-	os.execute(cmd)
+	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath:fixpathsep()..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c setupenv.bat';$s.Save()"]])
 
 	local dataDir = osDir..'/data'
 	path(dataDir):mkdir()
@@ -370,9 +364,6 @@ local function makeLinux(arch)
 	end
 		-- copy luajit
 	if includeLuaBinary then
-		--[[ I don't think I'm using UFO anymore...
-		copyFileToDir(ufoDir..'/bin/Linux/'..arch, luaDistVer, binDir)
-		--]]
 		--[[
 		local luajitPath = io.readproc'which luajit':trim()
 		local dir, name = path(luajitPath):getdir()
