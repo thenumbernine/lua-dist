@@ -172,7 +172,6 @@ local function makeWin(arch)
 			'cd data',
 			[[set PATH=%PATH%;bin\Windows\]]..arch,
 			[[set LUA_PATH=./?.lua;./?/?.lua]],
-		):append{
 			'bin\\Windows\\'..arch..'\\'..luaDistVer..'.exe '
 				..(getLuaArgs'win' or '')
 				..' > ..\\out.txt 2> ..\\err.txt',
@@ -296,7 +295,6 @@ local function makeOSX()
 			[[DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"]],
 			[[cd $DIR/../Resources]],
 			[[export LUA_PATH="./?.lua;./?/?.lua"]],
-		):append{
 			'./'..luaDistVer..' '
 				..(getLuaArgs'osx' or '')
 				..' > out.txt 2> err.txt',
@@ -347,8 +345,7 @@ local function makeLinux(arch)
 			[[export LUA_PATH="./?.lua;./?/?.lua"]],
 			-- this is binDir relative to dataDir
 			-- this line is needed for ffi's load to work
-			[[export LD_LIBRARY_PATH="bin/Linux/]]..arch..[["]]
-		):append{
+			[[export LD_LIBRARY_PATH="bin/Linux/]]..arch..[["]],
 			-- this is binDir relative to dataDir
 			'bin/Linux/'..arch..'/'..realLuaDistVer..' '
 				..(getLuaArgs'linux' or '')
