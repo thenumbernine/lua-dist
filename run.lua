@@ -54,6 +54,7 @@ local libDirs = {
 		'/usr/lib/x86_64-linux-gnu',
 	},
 }
+-- TODO use luarocks more
 
 local function exec(cmd)
 	print(cmd)
@@ -171,8 +172,6 @@ local function makeWin(arch)
 			'cd data',
 			[[set PATH=%PATH%;bin\Windows\]]..arch,
 			[[set LUA_PATH=./?.lua;./?/?.lua]],
-		}:append(
-			luaDistVer == 'luajit' and {'set LUAJIT_LIBPATH=.'} or {}
 		):append{
 			'bin\\Windows\\'..arch..'\\'..luaDistVer..'.exe '
 				..(getLuaArgs'win' or '')
@@ -297,8 +296,6 @@ local function makeOSX()
 			[[DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"]],
 			[[cd $DIR/../Resources]],
 			[[export LUA_PATH="./?.lua;./?/?.lua"]],
-		}:append(
-			luaDistVer == 'luajit' and {'export LUAJIT_LIBPATH="."'} or {}
 		):append{
 			'./'..luaDistVer..' '
 				..(getLuaArgs'osx' or '')
@@ -350,13 +347,7 @@ local function makeLinux(arch)
 			[[export LUA_PATH="./?.lua;./?/?.lua"]],
 			-- this is binDir relative to dataDir
 			-- this line is needed for ffi's load to work
-			-- TODO get rid of luajit-ffi-bindings's use of LUAJIT_LIBPATH ?
-			-- and just use this instead?
 			[[export LD_LIBRARY_PATH="bin/Linux/]]..arch..[["]]
-		}:append(
-			luaDistVer == 'luajit' and {
-				'export LUAJIT_LIBPATH="."'
-			} or {}
 		):append{
 			-- this is binDir relative to dataDir
 			'bin/Linux/'..arch..'/'..realLuaDistVer..' '
