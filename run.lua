@@ -119,6 +119,9 @@ local function copyByDescTable(destDir, descTable)
 	assert(type(destDir) == 'string')
 	assert(type(descTable) == 'table')
 	for base, filesForBase in pairs(descTable) do
+		-- evaluate any env vars
+		base = base:gsub('%$%b{}', function(w) return tostring(os.getenv(w:sub(3,-2))) end)
+
 		if type(filesForBase) ~= 'table' then
 			error("failed on destDir "..destDir.." got descTable "..require 'ext.tolua'(descTable))
 		end
