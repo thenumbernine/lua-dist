@@ -73,9 +73,9 @@ local function copyFileToDir(basedir, srcpath, dstdir)
 		(path(dstdir)/relsrcdir):mkdir(true)
 		-- /Y means suppress error on overwriting files
 		exec('copy "'
-			..(path(basedir)/srcpath):fixpathsep()
+			..(path(basedir)/srcpath)
 			..'" "'
-			..(path(dstdir)/relsrcdir):fixpathsep()
+			..(path(dstdir)/relsrcdir)
 			..'" /Y')
 	else
 		-- this is why luarocks requires you to map each individual files from-path to-path ...
@@ -86,9 +86,9 @@ local function copyFileToDir(basedir, srcpath, dstdir)
 		end
 		(path(dstdir)/relsrcdir):mkdir(true)
 		exec('cp "'
-			..(path(basedir)/srcpath):fixpathsep()
+			..(path(basedir)/srcpath)
 			..'" "'
-			..(path(dstdir)/relsrcdir):fixpathsep()
+			..(path(dstdir)/relsrcdir)
 			..'/"')
 	end
 end
@@ -98,19 +98,19 @@ local function copyDirToDir(basedir, srcdir, dstdir, pattern)
 	pattern = pattern or '*'
 	if ffi.os == 'Windows' then
 		exec('xcopy "'
-			..(path(basedir)/srcdir):fixpathsep()
+			..(path(basedir)/srcdir)
 			..'\\'..pattern
 			..'" "'
-			..(path(dstdir)/srcdir):fixpathsep()
+			..(path(dstdir)/srcdir)
 			..'" /E /I /Y')
 	else
 		--exec('cp -R '..srcdir..' '..dstdir)
 		exec("rsync -avm --exclude='.*' --include='"
 			..pattern
 			.."' -f 'hide,! */' '"
-			..(path(basedir)/srcdir):fixpathsep()
+			..(path(basedir)/srcdir)
 			.."' '"
-			..(path(dstdir)/srcdir/'..'):fixpathsep()..'/'
+			..(path(dstdir)/srcdir/'..')..'/'
 			.."'")
 	end
 end
@@ -181,7 +181,7 @@ local function makeWin(arch)
 		}:concat'\r\n'..'\r\n'
 	)
 
-	--exec('shortcut /f:"'..(path(osDir)'run.lnk'):fixpathsep()..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
+	--exec('shortcut /f:"'..(path(osDir)'run.lnk')..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
 	-- https://stackoverflow.com/a/30029955
 	-- should I finally switch from .bat to .ps1?
 	-- don't use exec cuz it gsub's all /'s to \'s ... which it wouldn't need to do if i just always called fixpath everywhere ... TODO
@@ -192,9 +192,9 @@ local function makeWin(arch)
 	-- but doesn't seem to help
 	-- it seems if the file is already there then powershell will modify it and append the targetpath instead of writing a new link so ...
 	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
-	local linkPath = path(osDir)'run.lnk'
+	local linkPath = path(osDir)/'run.lnk'
 	linkPath:remove()
-	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath:fixpathsep()..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c setupenv.bat';$s.Save()"]])
+	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c setupenv.bat';$s.Save()"]])
 
 	local dataDir = osDir..'/data'
 	path(dataDir):mkdir()
