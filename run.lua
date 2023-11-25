@@ -62,7 +62,7 @@ end
 -- or at least something that works on all OS's
 
 local function copyFileToDir(basedir, srcpath, dstdir)
-	local relsrcdir,srcfn = path(srcpath):getdir()
+	local relsrcdir, srcfn = path(srcpath):getdir()
 	if ffi.os == 'Windows' then
 		-- TODO how about an 'isabsolute()' in ext.path (which I need to rename to 'ext.path' ...)
 		if srcpath:sub(2,3) == ':\\' then
