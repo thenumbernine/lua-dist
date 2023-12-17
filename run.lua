@@ -1,14 +1,37 @@
 #!/usr/bin/env luajit
--- script to make an .app package
--- I'm using luajit for its ffi.os and ffi.arch variables
+--[[
+script to make an .app package
+I'm using luajit for its ffi.os and ffi.arch variables
+
+TODO
+can I make this also use .rockspec files?
+can I replace this completely with .rockspec files?
+would I want to?
+what does this need?
+- OS determination
+- per-OS configuration
+- copy entire folders, maybe with pattern filters (ext)
+
+
+maybe todo?
+- move the copy files stuff into one specific place, don't do them per-OS
+- don't bother with make-per-OS, just make for every OS at once
+- keep local copies of per-OS binaries?  this is looking more like UFO ...
+...but then again, OS's like Android and OSX will require their own unique directory structure.
+for their sake, maybe it's best to make a unique copy per-OS
+what about windows vs linux?  both are basically the same, just different launch scripts ...
+
+--]]
 
 -- global namespace so distinfo can see it
 ffi = require 'ffi'
 require 'ext'
+local exec = require 'make.exec'
 
 -- set 'all' to run all
 local target = ...
 if not target then
+-- [[ pick target based on current arch/os ...
 	if ffi.os == 'Windows' then
 		if ffi.arch == 'x32' then
 			target = 'win32'
@@ -24,8 +47,13 @@ if not target then
 	else
 		error("unknown os/arch "..ffi.os..'/'..ffi.arch)
 	end
+--]]
+--[[ just default to 'all' ?
+	target = 'all'
+--]]
 end
 
+local distdir = path'dist'
 
 -- hmm just always do this?
 includeLuaBinary = true
@@ -53,70 +81,73 @@ local libDirs = {
 }
 -- TODO use luarocks more
 
-local function exec(cmd)
-	print(cmd)
-	assert(os.execute(cmd))
-end
 
 -- TODO replace all exec(cp) and exec(rsync) with my own copy
 -- or at least something that works on all OS's
 
 local function copyFileToDir(basedir, srcpath, dstdir)
-	local relsrcdir, srcfn = path(srcpath):getdir()
+	basedir = path(basedir)
+	srcpath = path(srcpath)
+	dstdir = path(dstdir)
+	local relsrcdir, srcfn = srcpath:getdir()
 	if ffi.os == 'Windows' then
 		-- TODO how about an 'isabsolute()' in ext.path (which I need to rename to 'ext.path' ...)
-		if srcpath:sub(2,3) == ':\\' then
+		-- welp now there is a path:abs() ...
+		if srcpath.path:sub(2,3) == ':\\' then
 			-- worth complaining about?
 			--print("hmm how should I handle copying absolute paths to relative paths?\n".."got "..srcpath)
-			relsrcdir = '.'
+			relsrcdir = path'.'
 		end
-		(path(dstdir)/relsrcdir):mkdir(true)
+		(dstdir/relsrcdir):mkdir(true)
 		-- /Y means suppress error on overwriting files
-		exec('copy "'
-			..(path(basedir)/srcpath)
-			..'" "'
-			..(path(dstdir)/relsrcdir)
-			..'" /Y')
+		exec('copy '
+			..(basedir/srcpath):escape()
+			..' '
+			..(dstdir/relsrcdir):escape()
+			..' /Y')
 	else
 		-- this is why luarocks requires you to map each individual files from-path to-path ...
 		-- maybe don't complain here and don't append the path ...
-		if srcpath:sub(1,1) == '/' then
+		if srcpath.path:sub(1,1) == '/' then
 			--print("hmm how should I handle copying absolute paths to relative paths?\n".."got "..srcpath)
-			relsrcdir = '.'
+			relsrcdir = path'.'
 		end
-		(path(dstdir)/relsrcdir):mkdir(true)
-		exec('cp "'
-			..(path(basedir)/srcpath)
-			..'" "'
-			..(path(dstdir)/relsrcdir)
-			..'/"')
+		(dstdir/relsrcdir):mkdir(true)
+		exec('cp '
+			..(basedir/srcpath):escape()
+			..' "'
+			..(dstdir/relsrcdir)
+			..'/"')	-- is it important to have that tailing / there? if so, how can ext.path accomodate...
 	end
 end
 
 -- TODO ignore hidden files, or at least just skip the .git folders
 local function copyDirToDir(basedir, srcdir, dstdir, pattern)
+	basedir = path(basedir)
+	srcdir = path(srcdir)
+	dstdir = path(dstdir)
 	pattern = pattern or '*'
 	if ffi.os == 'Windows' then
 		exec('xcopy "'
-			..(path(basedir)/srcdir)
+			..(basedir/srcdir)
 			..'\\'..pattern
 			..'" "'
-			..(path(dstdir)/srcdir)
+			..(dstdir/srcdir)
 			..'" /E /I /Y')
 	else
 		--exec('cp -R '..srcdir..' '..dstdir)
 		exec("rsync -avm --exclude='.*' --include='"
 			..pattern
 			.."' -f 'hide,! */' '"
-			..(path(basedir)/srcdir)
+			..(basedir/srcdir)
 			.."' '"
-			..(path(dstdir)/srcdir/'..')..'/'
+			..(dstdir/srcdir/'..')..'/'
 			.."'")
 	end
 end
 
 local function copyByDescTable(destDir, descTable)
-	assert(type(destDir) == 'string')
+	destDir = path(destDir)
 	assert(type(descTable) == 'table')
 	for base, filesForBase in pairs(descTable) do
 		-- evaluate any env vars
@@ -126,9 +157,9 @@ local function copyByDescTable(destDir, descTable)
 			error("failed on destDir "..destDir.." got descTable "..require 'ext.tolua'(descTable))
 		end
 		for _,srcfn in ipairs(filesForBase) do
-			local srcpath = base..'/'..srcfn
-			assert(path(srcpath):exists(), "couldn't find "..srcpath)
-			if path(srcpath):isdir() then
+			local srcpath = path(base)/srcfn
+			assert(srcpath:exists(), "couldn't find "..srcpath)
+			if srcpath:isdir() then
 				copyDirToDir(base, srcfn, destDir)
 			else
 				copyFileToDir(base, srcfn, destDir)
@@ -162,11 +193,10 @@ local function makeWin(arch)
 	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
 	local distName = name..'-win'..bits
-	local osDir = 'dist/'..distName
-	path(osDir):mkdir()
+	local osDir = distdir/distName
+	osDir:mkdir()
 
--- TODO for now windows runs with no audio and no editor.  eventually add OpenAL and C/ImGui support.
-	path(osDir..'/setupenv.bat'):write(
+	(osDir/'setupenv.bat'):write(
 		table{
 			'setlocal',
 			'cd data',
@@ -181,7 +211,7 @@ local function makeWin(arch)
 		}:concat'\r\n'..'\r\n'
 	)
 
-	--exec('shortcut /f:"'..(path(osDir)'run.lnk')..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
+	--exec('shortcut /f:"'..(osDir/'run.lnk')..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
 	-- https://stackoverflow.com/a/30029955
 	-- should I finally switch from .bat to .ps1?
 	-- don't use exec cuz it gsub's all /'s to \'s ... which it wouldn't need to do if i just always called fixpath everywhere ... TODO
@@ -192,16 +222,14 @@ local function makeWin(arch)
 	-- but doesn't seem to help
 	-- it seems if the file is already there then powershell will modify it and append the targetpath instead of writing a new link so ...
 	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
-	local linkPath = path(osDir)/'run.lnk'
+	local linkPath = osDir/'run.lnk'
 	linkPath:remove()
 	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c setupenv.bat';$s.Save()"]])
 
-	local dataDir = osDir..'/data'
-	path(dataDir):mkdir()
-	path(dataDir..'/bin'):mkdir()
-	path(dataDir..'/bin/Windows'):mkdir()
-	local binDir = dataDir..'/bin/Windows/'..arch
-	path(binDir):mkdir()
+	local dataDir = osDir/'data'
+	dataDir:mkdir()
+	local binDir = dataDir/'bin/Windows'/arch
+	binDir:mkdir(true)
 
 	-- copy luajit
 	copyFileToDir(luaBinDirs.Windows, luaDistVer..'.exe', binDir)
@@ -237,19 +265,20 @@ local function makeWin(arch)
 	end
 
 	-- now make the zip
-	path('dist/'..distName..'.zip'):remove()
+	(distdir/(distName..'.zip')):remove()
 	exec('cd dist && tar -a -c -f "'..distName..'.zip" "'..distName..'"')
 end
 
+-- osx goes in dist/osx/${name}.app/Contents/
 local function makeOSX()
 	-- the osx-specific stuff:
-	local osDir = 'dist/osx'
-	path(osDir):mkdir()
-	path(osDir..'/'..name..'.app'):mkdir()
-	local contentsDir = osDir..'/'..name..'.app/Contents'
-	path(contentsDir):mkdir()
-	path(contentsDir..'/PkgInfo'):write'APPLhect'
-	path(contentsDir..'/Info.plist'):write([[
+	local osDir = distdir/'osx'
+	osDir:mkdir()
+	(osDir/(name..'.app')):mkdir()
+	local contentsDir = osDir/(name..'.app/Contents')
+	contentsDir:mkdir()
+	(contentsDir/'PkgInfo'):write'APPLhect'
+	(contentsDir/'Info.plist'):write([[
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -281,12 +310,12 @@ local function makeOSX()
 </dict>
 </plist>]])
 
-	local macOSDir = contentsDir..'/MacOS'
-	path(macOSDir):mkdir()
+	local macOSDir = contentsDir/'MacOS'
+	macOSDir:mkdir()
 
 	-- lemme double check the dir structure on this ...
-	local runSh = macOSDir..'/run.sh'
-	path(runSh):write(
+	local runSh = macOSDir/'run.sh'
+	runSh:write(
 		table{
 			[[#!/usr/bin/env bash]],
 			-- https://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
@@ -301,12 +330,12 @@ local function makeOSX()
 	)
 	exec('chmod +x '..runSh)
 
-	local resourcesDir = contentsDir..'/Resources'
-	path(resourcesDir):mkdir()
+	local resourcesDir = contentsDir/'Resources'
+	resourcesDir:mkdir()
 
 	-- copy luajit
-	local luajitPath = io.readproc('which '..luaDistVer):trim()
-	exec('cp "'..luajitPath..'" "'..resourcesDir..'"')
+	local luajitPath = path(io.readproc('which '..luaDistVer):trim())
+	exec('cp '..luajitPath:escape()..' '..resourcesDir:escape())
 
 	-- copy body
 	copyBody(resourcesDir)
@@ -314,10 +343,10 @@ local function makeOSX()
 	-- ffi osx so's
 	local libs = getLuajitLibs'osx'
 	if libs then
-		path(resourcesDir..'/bin'):mkdir()
-		path(resourcesDir..'/bin/OSX'):mkdir()
+		local resBinDir = resourcesDir/'bin/OSX'
+		resBinDir:mkdir(true)
 		for _,fn in ipairs(libs) do
-			exec('cp "'..projectsDir..'/bin/OSX/'..fn..'.dylib" "'..resourcesDir..'/bin/OSX"')
+			exec('cp "'..projectsDir..'/bin/OSX/'..fn..'.dylib" '..resBinDir:escape())
 		end
 	end
 end
@@ -327,17 +356,17 @@ local function makeLinux(arch)
 	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
 	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
 	local distName = name..'-linux'..bits
-	local osDir = 'dist/'..distName
-	path(osDir):mkdir()
+	local osDir = distdir/distName
+	osDir:mkdir()
 
-	local runSh = osDir..'/run.sh'
+	local runSh = osDir/'run.sh'
 
 	-- hmmm hmmmmm
 	-- my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
 	assert(luaDistVer == 'luajit')
 	local realLuaDistVer = 'luajit-openresty-2.1.0'
 
-	path(runSh):write(
+	runSh:write(
 		table{
 			[[#!/usr/bin/env bash]],
 			'cd data',
@@ -354,22 +383,20 @@ local function makeLinux(arch)
 	)
 	exec('chmod +x '..runSh)
 
-	local dataDir = osDir..'/data'
-	path(dataDir):mkdir()
+	local dataDir = osDir/'data'
+	dataDir:mkdir()
 
 	local libs = getLuajitLibs'linux'
 	local binDir
 	if includeLuaBinary or libs then
-		path(dataDir..'/bin'):mkdir()
-		path(dataDir..'/bin/Linux'):mkdir()
-		binDir = dataDir..'/bin/Linux/'..arch
-		path(binDir):mkdir()
+		binDir = dataDir/'bin/Linux'/arch
+		binDir:mkdir(true)
 	end
 		-- copy luajit
 	if includeLuaBinary then
 		--[[
-		local luajitPath = io.readproc'which luajit':trim()
-		local dir, name = path(luajitPath):getdir()
+		local luajitPath = path((io.readproc'which luajit':trim()))
+		local dir, name = luajitPath:getdir()
 		copyFileToDir(dir, name, binDir)
 		--]]
 		-- [[
@@ -400,7 +427,7 @@ local function makeLinux(arch)
 	end
 
 	-- now make the zip
-	path('dist/'..distName..'.zip'):remove()
+	(distdir/(distName..'.zip')):remove()
 	exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
 end
 
@@ -408,21 +435,21 @@ end
 -- it's a really bad hack, but I'm lazy
 local function makeWebServer()
 	assert(luaDistVer ~= 'luajit', "not supported just yet")
-	local osDir = 'dist/webserver'
-	path(osDir):mkdir()
+	local osDir = distdir/'webserver'
+	osDir:mkdir()
 
 	-- copy launch scripts
 	assert(launchScripts, "expected launchScripts")
 	copyByDescTable(osDir, launchScripts)
 
-	local dataDir = osDir..'/data'
-	path(dataDir):mkdir()
+	local dataDir = osDir/'data'
+	dataDir:mkdir()
 
 	-- copy body
 	copyBody(dataDir)
 end
 
-path'dist':mkdir()
+distdir:mkdir()
 if target == 'all' or target == 'osx' then makeOSX() end
 if target == 'all' or target == 'win32' then makeWin('x86') end
 if target == 'all' or target == 'win64' then makeWin('x64') end
