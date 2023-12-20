@@ -204,8 +204,8 @@ local function makeWin(arch)
 	local osDir = distdir/distName
 	osDir:mkdir()
 
-	local batname = 'run-'..arch..'.bat'
-	(osDir/batname):write(
+	local runbatname = 'run-'..arch..'.bat'
+	(osDir/runbatname):write(
 		table{
 			'setlocal',
 			'cd data',
@@ -220,7 +220,8 @@ local function makeWin(arch)
 		}:concat'\r\n'..'\r\n'
 	)
 
-	--exec('shortcut /f:"'..(osDir/'run.lnk')..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
+	local runlnkname = 'run-'..arch..'.lnk'
+	--exec('shortcut /f:"'..(osDir/runlnkname)..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
 	-- https://stackoverflow.com/a/30029955
 	-- should I finally switch from .bat to .ps1?
 	-- don't use exec cuz it gsub's all /'s to \'s ... which it wouldn't need to do if i just always called fixpath everywhere ... TODO
@@ -231,9 +232,9 @@ local function makeWin(arch)
 	-- but doesn't seem to help
 	-- it seems if the file is already there then powershell will modify it and append the targetpath instead of writing a new link so ...
 	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
-	local linkPath = osDir/'run.lnk'
-	linkPath:remove()
-	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c ]]..batname..[[';$s.Save()"]])
+	local runlnkpath = osDir/runlnkname
+	runlnkpath:remove()
+	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..runlnkpath..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c ]]..runbatname..[[';$s.Save()"]])
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
@@ -325,8 +326,8 @@ local function makeOSX()
 	macOSDir:mkdir()
 
 	-- lemme double check the dir structure on this ...
-	local runSh = macOSDir/'run-osx.sh'
-	runSh:write(
+	local runshpath = macOSDir/'run-osx.sh'
+	runshpath:write(
 		table{
 			[[#!/usr/bin/env bash]],
 			-- https://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
@@ -339,7 +340,7 @@ local function makeOSX()
 				..' > out.txt 2> err.txt',
 		}:concat'\n'..'\n'
 	)
-	exec('chmod +x '..runSh)
+	exec('chmod +x '..runshpath)
 
 	local resourcesDir = contentsDir/'Resources'
 	resourcesDir:mkdir()
@@ -370,14 +371,14 @@ local function makeLinux(arch)
 	local osDir = distdir/distName
 	osDir:mkdir()
 
-	local runSh = osDir/'run-linux.sh'
+	local runshpath = osDir/'run-linux.sh'
 
 	-- hmmm hmmmmm
 	-- my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
 	assert(luaDistVer == 'luajit')
 	local realLuaDistVer = 'luajit-openresty-2.1.0'
 
-	runSh:write(
+	runshpath:write(
 		table{
 			[[#!/usr/bin/env bash]],
 			'cd data',
@@ -392,7 +393,7 @@ local function makeLinux(arch)
 				..' > ../out.txt 2> ../err.txt',
 		}:concat'\n'..'\n'
 	)
-	exec('chmod +x '..runSh)
+	exec('chmod +x '..runshpath)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
@@ -466,6 +467,7 @@ print('targets', targets:concat', ')
 targets = targets:mapi(function(v) return true, v end):setmetatable(nil)
 distdir:mkdir()
 if targets.all or targets.osx then makeOSX() end
+-- TODO separate os/arch like ffi does? win32 => Windows/x86, win64 => Windows/x64
 if targets.all or targets.win32 then makeWin('x86') end
 if targets.all or targets.win64 then makeWin('x64') end
 if targets.all or targets.linux then makeLinux('x64') end
