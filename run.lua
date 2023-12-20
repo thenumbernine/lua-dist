@@ -3,6 +3,9 @@
 script to make an .app package
 I'm using luajit for its ffi.os and ffi.arch variables
 
+cmdline options:
+- dontZip = don't make final zip file
+
 TODO
 can I make this also use .rockspec files?
 can I replace this completely with .rockspec files?
@@ -25,33 +28,38 @@ what about windows vs linux?  both are basically the same, just different launch
 
 -- global namespace so distinfo can see it
 ffi = require 'ffi'
-require 'ext'
+require 'ext.env'(_G)
 local exec = require 'make.exec'
 
 -- set 'all' to run all
-local target = ...
-if not target then
--- [[ pick target based on current arch/os ...
-	if ffi.os == 'Windows' then
-		if ffi.arch == 'x32' then
-			target = 'win32'
-		elseif ffi.arch == 'x64' then
-			target = 'win64'
+local targets = table(cmdline.targets)
+if #targets == 0 then
+	local target = cmdline.target or cmdline[1]
+	if not target then
+	-- [[ pick target based on current arch/os ...
+		if ffi.os == 'Windows' then
+			if ffi.arch == 'x32' then
+				target = 'win32'
+			elseif ffi.arch == 'x64' then
+				target = 'win64'
+			else
+				error("unknown os/arch "..ffi.os..'/'..ffi.arch)
+			end
+		elseif ffi.os == 'Linux' then
+			target = 'linux'
+		elseif fi.os == 'OSX' then
+			target = 'osx'
 		else
 			error("unknown os/arch "..ffi.os..'/'..ffi.arch)
 		end
-	elseif ffi.os == 'Linux' then
-		target = 'linux'
-	elseif fi.os == 'OSX' then
-		target = 'osx'
-	else
-		error("unknown os/arch "..ffi.os..'/'..ffi.arch)
+	--]]
+	--[[ just default to 'all' ?
+		target = 'all'
+	--]]
 	end
---]]
---[[ just default to 'all' ?
-	target = 'all'
---]]
+	targets:insert(target)
 end
+assert(#targets > 0, "don't have any targets to build for")
 
 local distdir = path'dist'
 
@@ -196,7 +204,8 @@ local function makeWin(arch)
 	local osDir = distdir/distName
 	osDir:mkdir()
 
-	(osDir/'setupenv.bat'):write(
+	local batname = 'run-'..arch..'.bat'
+	(osDir/batname):write(
 		table{
 			'setlocal',
 			'cd data',
@@ -224,7 +233,7 @@ local function makeWin(arch)
 	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
 	local linkPath = osDir/'run.lnk'
 	linkPath:remove()
-	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c setupenv.bat';$s.Save()"]])
+	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..linkPath..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c ]]..batname..[[';$s.Save()"]])
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
@@ -265,8 +274,10 @@ local function makeWin(arch)
 	end
 
 	-- now make the zip
-	(distdir/(distName..'.zip')):remove()
-	exec('cd dist && tar -a -c -f "'..distName..'.zip" "'..distName..'"')
+	if not cmdline.dontZip then
+		(distdir/(distName..'.zip')):remove()
+		exec('cd dist && tar -a -c -f "'..distName..'.zip" "'..distName..'"')
+	end
 end
 
 -- osx goes in dist/osx/${name}.app/Contents/
@@ -296,7 +307,7 @@ local function makeOSX()
 	<key>CFBundleDocumentTypes</key>
 	<array/>
 	<key>CFBundleExecutable</key>
-	<string>run.sh</string>
+	<string>run-osx.sh</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>1.0</string>
 	<key>CFBundlePackageType</key>
@@ -314,7 +325,7 @@ local function makeOSX()
 	macOSDir:mkdir()
 
 	-- lemme double check the dir structure on this ...
-	local runSh = macOSDir/'run.sh'
+	local runSh = macOSDir/'run-osx.sh'
 	runSh:write(
 		table{
 			[[#!/usr/bin/env bash]],
@@ -359,7 +370,7 @@ local function makeLinux(arch)
 	local osDir = distdir/distName
 	osDir:mkdir()
 
-	local runSh = osDir/'run.sh'
+	local runSh = osDir/'run-linux.sh'
 
 	-- hmmm hmmmmm
 	-- my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
@@ -427,8 +438,10 @@ local function makeLinux(arch)
 	end
 
 	-- now make the zip
-	(distdir/(distName..'.zip')):remove()
-	exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
+	if not cmdline.dontZip then
+		(distdir/(distName..'.zip')):remove()
+		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
+	end
 end
 
 -- i'm using this for a webserver distributable that assumes the host has lua already installed
@@ -449,10 +462,12 @@ local function makeWebServer()
 	copyBody(dataDir)
 end
 
+print('targets', targets:concat', ')
+targets = targets:mapi(function(v) return true, v end):setmetatable(nil)
 distdir:mkdir()
-if target == 'all' or target == 'osx' then makeOSX() end
-if target == 'all' or target == 'win32' then makeWin('x86') end
-if target == 'all' or target == 'win64' then makeWin('x64') end
-if target == 'all' or target == 'linux' then makeLinux('x64') end
+if targets.all or targets.osx then makeOSX() end
+if targets.all or targets.win32 then makeWin('x86') end
+if targets.all or targets.win64 then makeWin('x64') end
+if targets.all or targets.linux then makeLinux('x64') end
 -- hmm ... I'll finish that lazy hack later
---if target == 'all' or target == 'webserver' then makeWebServer() end
+--if targets.all or targets.webserver then makeWebServer() end
