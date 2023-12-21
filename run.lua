@@ -31,6 +31,10 @@ ffi = require 'ffi'
 require 'ext.env'(_G)
 local exec = require 'make.exec'
 
+-- 'dist' project dir
+local fn = package.searchpath('dist', package.path):gsub('\\', '/')
+local distProjectDir = path(fn):getdir()
+
 -- set 'all' to run all
 local targets = table(cmdline.targets)
 if #targets == 0 then
@@ -61,7 +65,8 @@ if #targets == 0 then
 end
 assert(#targets > 0, "don't have any targets to build for")
 
-local distdir = path'dist'
+-- 'dist' local dir for this project
+local distDir = path'dist'
 
 -- hmm just always do this?
 includeLuaBinary = true
@@ -69,6 +74,14 @@ includeLuaBinary = true
 assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
 assert(files)
+
+-- hmmm hmmmmm
+-- my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
+print("luaDistVer", luaDistVer)
+assert(luaDistVer == 'luajit')
+-- TODO have a per-OS varible or something?  here? idk?
+local realLuaDistVer = 'luajit-openresty-2.1.0'
+
 
 local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
 local projectsDir = os.getenv'LUA_PROJECT_PATH'
@@ -196,30 +209,37 @@ local function getLuaArgs(plat)
 	return getForPlat(luaArgs, plat, 'string')
 end
 
--- the windows-specific stuff:
-local function makeWin(arch)
-	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
-	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
-	local distName = name..'-win'..bits
-	local osDir = distdir/distName
-	osDir:mkdir()
-
+local function makeWinScript(arch, osDir, binDirRel)
 	local runbatname = 'run-'..arch..'.bat'
 	(osDir/runbatname):write(
 		table{
 			'setlocal',
 			'cd data',
-			[[set PATH=%PATH%;bin\Windows\]]..arch,
+			[[set PATH=%PATH%;]]..binDirRel,
 			[[set LUA_PATH=./?.lua;./?/?.lua]],
 			[[set LUA_CPATH=./?.dll]],
-			'bin\\Windows\\'..arch..'\\'..luaDistVer..'.exe '
+			(binDirRel/(luaDistVer..'.exe'))..' '
 				..(getLuaArgs'win' or '')
 				..' > ..\\out.txt 2> ..\\err.txt',
 			'cd ..',
 			'endlocal',
 		}:concat'\r\n'..'\r\n'
 	)
+	return runbatname
+end
 
+-- the windows-specific stuff:
+local function makeWin(arch)
+	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
+	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
+	local distName = name..'-win'..bits
+	local osDir = distDir/distName
+	osDir:mkdir()
+
+	local binDirRel = path'bin/Windows'/arch
+	local runbatname = makeWinScript(arch, osDir, binDirRel)
+
+	-- [[ make the .lnk file since some computers give a warning when launching a .bat file
 	local runlnkname = 'run-'..arch..'.lnk'
 	--exec('shortcut /f:"'..(osDir/runlnkname)..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
 	-- https://stackoverflow.com/a/30029955
@@ -234,11 +254,19 @@ local function makeWin(arch)
 	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
 	local runlnkpath = osDir/runlnkname
 	runlnkpath:remove()
-	exec([[powershell "$s=(New-Object -COM WScript.Shell).CreateShortcut(']]..runlnkpath..[[');$s.TargetPath='%'+'COMSPEC'+'%';$s.Arguments='/c ]]..runbatname..[[';$s.Save()"]])
-
+	local cmd = table{
+		"$s=(New-Object -COM WScript.Shell).CreateShortcut('",runlnkpath,"');",
+		"$s.TargetPath='%'+'COMSPEC'+'%';",
+		"$s.Arguments='/c ",runbatname,"';",
+		"$s.Save()",
+	}:concat()
+	exec('powershell "'..cmd..'"')
+	--]]
+	
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
-	local binDir = dataDir/'bin/Windows'/arch
+	
+	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
 
 	-- copy luajit
@@ -276,7 +304,7 @@ local function makeWin(arch)
 
 	-- now make the zip
 	if not cmdline.dontZip then
-		(distdir/(distName..'.zip')):remove()
+		(distDir/(distName..'.zip')):remove()
 		exec('cd dist && tar -a -c -f "'..distName..'.zip" "'..distName..'"')
 	end
 end
@@ -284,7 +312,7 @@ end
 -- osx goes in dist/osx/${name}.app/Contents/
 local function makeOSX()
 	-- the osx-specific stuff:
-	local osDir = distdir/'osx'
+	local osDir = distDir/'osx'
 	osDir:mkdir()
 	(osDir/(name..'.app')):mkdir()
 	local contentsDir = osDir/(name..'.app/Contents')
@@ -363,21 +391,9 @@ local function makeOSX()
 	end
 end
 
--- should I include binaries in the linux distribution?
-local function makeLinux(arch)
-	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
-	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
-	local distName = name..'-linux'..bits
-	local osDir = distdir/distName
-	osDir:mkdir()
-
+-- TODO change runshpath based on arch? run-linux32 vs run-linux64
+local function makeLinuxScript(osDir, binDirRel)
 	local runshpath = osDir/'run-linux.sh'
-
-	-- hmmm hmmmmm
-	-- my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
-	assert(luaDistVer == 'luajit')
-	local realLuaDistVer = 'luajit-openresty-2.1.0'
-
 	runshpath:write(
 		table{
 			[[#!/usr/bin/env bash]],
@@ -386,22 +402,36 @@ local function makeLinux(arch)
 			[[export LUA_CPATH="./?.so"]],
 			-- this is binDir relative to dataDir
 			-- this line is needed for ffi's load to work
-			[[export LD_LIBRARY_PATH="bin/Linux/]]..arch..[["]],
+			[[export LD_LIBRARY_PATH=]]..binDirRel:escape(),
 			-- this is binDir relative to dataDir
-			'bin/Linux/'..arch..'/'..realLuaDistVer..' '
+			binDirRel..'/'..realLuaDistVer..' '
 				..(getLuaArgs'linux' or '')
 				..' > ../out.txt 2> ../err.txt',
 		}:concat'\n'..'\n'
 	)
 	exec('chmod +x '..runshpath)
+end
 
+-- should I include binaries in the linux distribution?
+local function makeLinux(arch)
+	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
+	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
+	local distName = name..'-linux'..bits
+	local osDir = distDir/distName
+	osDir:mkdir()
+	
+	-- this is where luajit is relative to the runtime cwd
+	local binDirRel = path'bin/Linux'/arch
+
+	makeLinuxScript(osDir, binDirRel)
+	
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
 	local libs = getLuajitLibs'linux'
 	local binDir
 	if includeLuaBinary or libs then
-		binDir = dataDir/'bin/Linux'/arch
+		binDir = dataDir/binDirRel
 		binDir:mkdir(true)
 	end
 		-- copy luajit
@@ -440,7 +470,69 @@ local function makeLinux(arch)
 
 	-- now make the zip
 	if not cmdline.dontZip then
-		(distdir/(distName..'.zip')):remove()
+		(distDir/(distName..'.zip')):remove()
+		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
+	end
+end
+
+local function makeLinuxWin64()
+	local arch = 'x64'
+	local distName = name..'-linux-win-64'
+	
+	-- [[ BEGIN MATCHING makeLinux
+	local osDir = distDir/distName
+	osDir:mkdir()
+
+	-- this is where luajit is relative to the runtime cwd
+	local binDirRel = path'bin/Linux'/arch
+
+	makeLinuxScript(osDir, binDirRel)
+	makeWinScript(arch, osDir, binDirRel)
+
+	local dataDir = osDir/'data'
+	dataDir:mkdir()
+	
+	local libs = getLuajitLibs'linux'
+	local binDir
+	if includeLuaBinary or libs then
+		binDir = dataDir/binDirRel
+		binDir:mkdir(true)
+	end
+		-- copy luajit
+	if includeLuaBinary then
+		copyFileToDir('/usr/local/bin', realLuaDistVer, binDir)
+	end
+
+	-- copy body
+	copyBody(dataDir)
+
+	-- copy ffi linux so's
+	-- same as Windows
+	if libs then
+		for _,basefn in ipairs(libs) do
+			local fn = 'lib'..basefn..'.so'
+			local found
+			for _,srcdir in ipairs(libDirs.Linux) do
+				if (path(srcdir)/fn):exists() then
+					copyFileToDir(srcdir, fn, binDir)
+					found = true
+					break
+				end
+			end
+			if not found then
+				print("couldn't find library "..fn.." in paths "..tolua(libDirs.Linux))
+			end
+		end
+	end
+	--]]	
+
+	-- now copy the run_Windows dir to dataDir/bin/Windows
+	copyDirToDir(distProjectDir/'bin_Windows', '.', dataDir/'bin/Windows')
+
+	-- now make the zip
+	-- this is assuming we're running from linux ...
+	if not cmdline.dontZip then
+		(distDir/(distName..'.zip')):remove()
 		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
 	end
 end
@@ -449,7 +541,7 @@ end
 -- it's a really bad hack, but I'm lazy
 local function makeWebServer()
 	assert(luaDistVer ~= 'luajit', "not supported just yet")
-	local osDir = distdir/'webserver'
+	local osDir = distDir/'webserver'
 	osDir:mkdir()
 
 	-- copy launch scripts
@@ -465,11 +557,12 @@ end
 
 print('targets', targets:concat', ')
 targets = targets:mapi(function(v) return true, v end):setmetatable(nil)
-distdir:mkdir()
+distDir:mkdir()
 if targets.all or targets.osx then makeOSX() end
 -- TODO separate os/arch like ffi does? win32 => Windows/x86, win64 => Windows/x64
 if targets.all or targets.win32 then makeWin('x86') end
 if targets.all or targets.win64 then makeWin('x64') end
 if targets.all or targets.linux then makeLinux('x64') end
+if targets.linuxWin64 then makeLinuxWin64() end	-- build linux/windows x64 ... until I rethink how to break things apart and make them more modular ...
 -- hmm ... I'll finish that lazy hack later
 --if targets.all or targets.webserver then makeWebServer() end
