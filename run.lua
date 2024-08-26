@@ -51,7 +51,7 @@ if #targets == 0 then
 			end
 		elseif ffi.os == 'Linux' then
 			target = 'linux'
-		elseif fi.os == 'OSX' then
+		elseif ffi.os == 'OSX' then
 			target = 'osx'
 		else
 			error("unknown os/arch "..ffi.os..'/'..ffi.arch)
@@ -98,6 +98,9 @@ local libDirs = {
 	Linux = {
 		'/usr/local/lib',
 		'/usr/lib/x86_64-linux-gnu',
+	},
+	OSX = {
+		'/usr/local/lib',
 	},
 }
 -- TODO use luarocks more
@@ -178,7 +181,7 @@ local function copyByDescTable(destDir, descTable)
 			error("failed on destDir "..destDir.." got descTable "..require 'ext.tolua'(descTable))
 		end
 		for _,srcfn in ipairs(filesForBase) do
-			local srcpath = path(base)/srcfn
+			local srcpath = path(base)(srcfn)
 			assert(srcpath:exists(), "couldn't find "..srcpath)
 			if srcpath:isdir() then
 				copyDirToDir(base, srcfn, destDir)
@@ -218,7 +221,7 @@ local function makeWinScript(arch, osDir, binDirRel)
 			[[set PATH=%PATH%;]]..binDirRel,
 			[[set LUA_PATH=./?.lua;./?/?.lua]],
 			[[set LUA_CPATH=./?.dll]],
-			(binDirRel/(luaDistVer..'.exe'))..' '
+			binDirRel(luaDistVer..'.exe')..' '
 				..(getLuaArgs'win' or '')
 				..' > ..\\out.txt 2> ..\\err.txt',
 			'cd ..',
@@ -289,7 +292,7 @@ local function makeWin(arch)
 				local fn = basefn..'.'..ext
 				local found
 				for _,srcdir in ipairs(libDirs.Windows) do
-					if (path(srcdir)/fn):exists() then
+					if path(srcdir)(fn):exists() then
 						copyFileToDir(srcdir, fn, binDir)
 						found = true
 						break
@@ -304,7 +307,7 @@ local function makeWin(arch)
 
 	-- now make the zip
 	if not cmdline.dontZip then
-		(distDir/(distName..'.zip')):remove()
+		distDir(distName..'.zip'):remove()
 		exec('cd dist && tar -a -c -f "'..distName..'.zip" "'..distName..'"')
 	end
 end
@@ -314,11 +317,11 @@ local function makeOSX()
 	-- the osx-specific stuff:
 	local osDir = distDir/'osx'
 	osDir:mkdir()
-	(osDir/(name..'.app')):mkdir()
-	local contentsDir = osDir/(name..'.app/Contents')
+	osDir(name..'.app'):mkdir()
+	local contentsDir = osDir(name..'.app/Contents')
 	contentsDir:mkdir()
-	(contentsDir/'PkgInfo'):write'APPLhect'
-	(contentsDir/'Info.plist'):write([[
+	contentsDir'PkgInfo':write'APPLhect'
+	contentsDir'Info.plist':write([[
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -374,7 +377,7 @@ local function makeOSX()
 	resourcesDir:mkdir()
 
 	-- copy luajit
-	local luajitPath = path(io.readproc('which '..luaDistVer):trim())
+	local luajitPath = path(string.trim(io.readproc('which '..luaDistVer)))
 	exec('cp '..luajitPath:escape()..' '..resourcesDir:escape())
 
 	-- copy body
@@ -385,8 +388,19 @@ local function makeOSX()
 	if libs then
 		local resBinDir = resourcesDir/'bin/OSX'
 		resBinDir:mkdir(true)
-		for _,fn in ipairs(libs) do
-			exec('cp "'..projectsDir..'/bin/OSX/'..fn..'.dylib" '..resBinDir:escape())
+		for _,basefn in ipairs(libs) do
+			local fn = 'lib'..basefn..'.dylib'
+			local found
+			for _,srcdir in ipairs(libDirs.OSX) do
+				if path(srcdir)(fn):exists() then
+					copyFileToDir(srcdir, fn, resBinDir)
+					found = true
+					break
+				end
+			end
+			if not found then
+				print("couldn't find library "..fn.." in paths "..tolua(libDirs.OSX))
+			end
 		end
 	end
 end
@@ -437,7 +451,7 @@ local function makeLinux(arch)
 		-- copy luajit
 	if includeLuaBinary then
 		--[[
-		local luajitPath = path((io.readproc'which luajit':trim()))
+		local luajitPath = path((string.trim(io.readproc'which luajit')))
 		local dir, name = luajitPath:getdir()
 		copyFileToDir(dir, name, binDir)
 		--]]
@@ -456,7 +470,7 @@ local function makeLinux(arch)
 			local fn = 'lib'..basefn..'.so'
 			local found
 			for _,srcdir in ipairs(libDirs.Linux) do
-				if (path(srcdir)/fn):exists() then
+				if path(srcdir)(fn):exists() then
 					copyFileToDir(srcdir, fn, binDir)
 					found = true
 					break
@@ -470,7 +484,7 @@ local function makeLinux(arch)
 
 	-- now make the zip
 	if not cmdline.dontZip then
-		(distDir/(distName..'.zip')):remove()
+		distDir(distName..'.zip'):remove()
 		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
 	end
 end
@@ -513,7 +527,7 @@ local function makeLinuxWin64()
 			local fn = 'lib'..basefn..'.so'
 			local found
 			for _,srcdir in ipairs(libDirs.Linux) do
-				if (path(srcdir)/fn):exists() then
+				if path(srcdir)(fn):exists() then
 					copyFileToDir(srcdir, fn, binDir)
 					found = true
 					break
@@ -532,7 +546,7 @@ local function makeLinuxWin64()
 	-- now make the zip
 	-- this is assuming we're running from linux ...
 	if not cmdline.dontZip then
-		(distDir/(distName..'.zip')):remove()
+		distDir(distName..'.zip'):remove()
 		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
 	end
 end
