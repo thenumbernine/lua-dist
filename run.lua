@@ -259,9 +259,9 @@ local function makeWin(arch)
 	local runlnkpath = osDir/runlnkname
 	runlnkpath:remove()
 	local cmd = table{
-		"$s=(New-Object -COM WScript.Shell).CreateShortcut('",runlnkpath,"');",
+		"$s=(New-Object -COM WScript.Shell).CreateShortcut('"..runlnkpath.."');",
 		"$s.TargetPath='%'+'COMSPEC'+'%';",
-		"$s.Arguments='/c ",runbatname,"';",
+		"$s.Arguments='/c "..runbatname.."';",
 		"$s.Save()",
 	}:concat()
 	exec('powershell "'..cmd..'"')
@@ -275,7 +275,7 @@ local function makeWin(arch)
 
 	-- copy luajit
 	copyFileToDir(luaBinDirs.Windows, luaDistVer..'.exe', binDir)
-	copyFileToDir(luaBinDirs.Windows, 'luajit-2.1.0-beta3.dll', binDir)
+	copyFileToDir(luaBinDirs.Windows, 'luajit-2.1.0-beta3-openresty.dll', binDir)
 
 	-- copy body
 	copyBody(dataDir)
