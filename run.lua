@@ -76,11 +76,12 @@ assert(name)
 assert(files)
 
 -- hmmm hmmmmm
--- my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
+-- sometimes my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
 print("luaDistVer", luaDistVer)
 assert(luaDistVer == 'luajit')
 -- TODO have a per-OS varible or something?  here? idk?
-local realLuaDistVer = 'luajit-openresty-2.1.0'
+--local realLuaDistVer = 'luajit-openresty-2.1.0'
+local realLuaDistVer = 'luajit'
 
 
 local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
