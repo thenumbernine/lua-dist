@@ -25,3 +25,28 @@ files = key/value map where the keys is the base directory and the values are wh
 - copies from `base/file` to `dist/data/directory/file`
 
 luajitLibs = table of luajit libs to use, with platform-specific overrides similar to luaArgs
+
+
+
+# Current Directory Setup
+
+Looks like I am copying malkia's UFO for this one.
+
+`release/` = holds stuff to be copied to each release.
+-	`bin/$OS/$arch/` = holds any C-symbol libraries loaded by luajit's `ffi.load()`.  Its path is configurable in the `ffi/load.lua` file.
+-	`bin/$OS/$arch/` = holds Lua libraries loaded by lua's `load()`.  Its path is configurable with the `LUA_CPATH` env var / `package.cpath` lua global.  Maybe I should separate this from the C-symbol libraries?
+Looks like I am putting all OS-specific directory stuff into `bin/$OS/$arch` for now, maybe I'll break this up later.
+
+# Libraries to be packaged with?
+
+Ideally these will fit with the `ffi/$binding.lua` generated from include files, which would be:
+- luajit2-OpenResty tags/v2.1-20250117 with `LUAJIT_ENABLE_LUA52COMPAT` enabled
+- luasocket version ...
+- luasec version ...
+- SDL2 version 2.30.9
+- LibPNG version 1.6.44
+- LibOGG version
+- LibVorbis 1.3.7
+- cimgui+sdl2+opengl3 1.90.5 ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)
+- OpenAL version ... 1.1?  I think I'm using some other compat library ...
+- LibClip

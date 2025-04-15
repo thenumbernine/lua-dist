@@ -24,6 +24,13 @@ maybe todo?
 for their sake, maybe it's best to make a unique copy per-OS
 what about windows vs linux?  both are basically the same, just different launch scripts ...
 
+targets:
+	win32 = Windows/x32
+	win64 = Windows/x64
+	linux = Linux/x64
+	osx = OSX/x64
+	all = run all of them
+	webserver = idk what I was doing with this one
 --]]
 
 -- global namespace so distinfo can see it
@@ -542,7 +549,7 @@ local function makeLinuxWin64()
 	--]]	
 
 	-- now copy the run_Windows dir to dataDir/bin/Windows
-	copyDirToDir(distProjectDir/'bin_Windows', '.', dataDir/'bin/Windows')
+	copyDirToDir(distProjectDir/'bin/Windows', '.', dataDir/'bin/Windows')
 
 	-- now make the zip
 	-- this is assuming we're running from linux ...
