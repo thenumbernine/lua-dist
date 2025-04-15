@@ -45,7 +45,8 @@ Ideally these will fit with the `ffi/$binding.lua` generated from include files,
 - luasec version ...
 - SDL2 version 2.32.4
 - LibPNG version 1.6.47
-- zlib version 1.2.12 is used by libpng 1.6.47
+- zlib version 1.2.12 is used by LibPNG 1.6.47
+- LibTIFF 4.7.0
 - LibOGG version
 - LibVorbis 1.3.7
 - cimgui+sdl2+opengl3 1.90.5 ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)

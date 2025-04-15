@@ -3,6 +3,7 @@ local ffi = require 'ffi'
 local string = require 'ext.string'
 local assert = require 'ext.assert'
 local io = require 'ext.io'
+local op = require 'ext.op'
 
 local binext = ffi.os == 'Windows' and '.exe' or ''
 local libprefix = ffi.os == 'Windows' and '' or 'lib'
@@ -29,8 +30,10 @@ print('luajit version:', luajitVer)
 --]]
 
 -- [[ luasocket
-print('luasocket version: '..require'socket'._VERSION)
-print('luasec version: '..require'ssl'._VERSION)
+local socket = op.land(pcall(require, 'socket'))
+print('luasocket version: '..(socket and socket._VERSION or 'not found'))
+local ssl = op.land(pcall(require, 'ssl'))
+print('luasec version: '..(ssl and ssl._VERSION or 'not found'))
 --]]
 
 -- [[ png
