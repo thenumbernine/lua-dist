@@ -55,7 +55,7 @@ print('zlib header version:', zlib.ZLIB_VERSION)
 
 -- [[ sdl2
 require 'ffi.load'.SDL2 = getFileName'SDL2'
-local sdl = require 'ffi.req' 'sdl'
+local sdl = require 'ffi.req' 'sdl2'
 print('sdl header version:', sdl.SDL_MAJOR_VERSION..'.'..sdl.SDL_MINOR_VERSION..'.'..sdl.SDL_PATCHLEVEL..' compiled:'..sdl.SDL_COMPILEDVERSION)
 local sdlver = ffi.new'SDL_version'
 sdl.SDL_GetVersion(sdlver)
