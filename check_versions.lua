@@ -37,7 +37,7 @@ print('luasec version: '..require'ssl'._VERSION)
 require 'ffi.load'.png = getFileName'png'
 local png = require 'ffi.req' 'png'
 print('png header version:', png.PNG_LIBPNG_VER_STRING)
-print('png library version:', ffi.string(png.png_get_libpng_ver(nil)))
+print('png library version:', ffi.string(png.png_libpng_ver()))
 --]]
 
 -- [[ tiff ... links png
