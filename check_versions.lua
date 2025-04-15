@@ -5,27 +5,25 @@ local assert = require 'ext.assert'
 local io = require 'ext.io'
 local op = require 'ext.op'
 
-local binext = ffi.os == 'Windows' and '.exe' or ''
-local libprefix = ffi.os == 'Windows' and '' or 'lib'
-local libext = ({Windows='dll', OSX='dylib'})[ffi.os] or 'so'
+local archdir = 'release/bin/'..ffi.os..'/'..ffi.arch
+local binext = ffi.os == 'Windows' and '.ext' or ''
+local luajit = 'luajit'..binext
 
-local distarchdir = 'release/bin/'..ffi.os..'/'..ffi.arch
+--[[ use a local copy instead of whatever system location is in ffi.load
+-- specify it manually here since a few of the windows dll names dont match up
+local ffiload = require 'ffi.load'
+ffiload.png = {Windows=archdir..'/libpng6.dll'}
+ffiload.tiff = {Windows=archdir..'/tiff.dll'}
+ffiload.SDL2 = {Windows=archdir..'/SDL2.dll'}
+ffiload.cimgui_sdl = {Windows=archdir..'/cimgui_sdl.dll'}
+ffiload.vorbis = {Windows=archdir..'/vorbisfile.dll'}
 
-local function getFileName(name, bin)
-	local prefix = bin and '' or 'lib'
-	local ext = bin and binext or libext
-	-- [[ use machine local copy
-	-- TODO latest luajit2-openresty version isn't finding libraries ...
-	-- ... maybe because it's not finding its own library?  idk
-	return name
-	--]]
-	--[[ use copy saved in dist/release
-	return distarchdir..'/'..libprefix..name..'.'..libext
-	--]]
-end
+luajit = archdir..'/'..luajit
+--]]
+
 
 -- [[ luajit
-local luajitVer = string.trim(io.readproc(getFileName('luajit', true)..' -v'))
+local luajitVer = string.trim(io.readproc(luajit..' -v'))
 print('luajit version:', luajitVer)
 --]]
 
@@ -37,14 +35,12 @@ print('luasec version: '..(ssl and ssl._VERSION or 'not found'))
 --]]
 
 -- [[ png
-require 'ffi.load'.png = getFileName'png'
 local png = require 'ffi.req' 'png'
 print('png header version:', png.PNG_LIBPNG_VER_STRING)
 print('png library version:', ffi.string(png.png_libpng_ver()))
 --]]
 
 -- [[ tiff ... links png
-require 'ffi.load'.tiff = getFileName'tiff'
 local tiff = require 'ffi.req' 'tiff'
 print('tiff library version:', (ffi.string(tiff.TIFFGetVersion()):gsub('\n', ' ')))
 print('tiff header version:', (tiff.TIFFLIB_VERSION_STR:gsub('\n', ' ')))
@@ -57,7 +53,6 @@ print('zlib header version:', zlib.ZLIB_VERSION)
 --]]
 
 -- [[ sdl2
-require 'ffi.load'.SDL2 = getFileName'SDL2'
 local sdl = require 'ffi.req' 'sdl2'
 print('sdl header version:', sdl.SDL_MAJOR_VERSION..'.'..sdl.SDL_MINOR_VERSION..'.'..sdl.SDL_PATCHLEVEL..' compiled:'..sdl.SDL_COMPILEDVERSION)
 local sdlver = ffi.new'SDL_version'
@@ -66,7 +61,6 @@ print('sdl library version:', sdlver.major..'.'..sdlver.minor..'.'..sdlver.patch
 --]]
 
 -- [[ cimgui+sdl2+opengl3
-require 'ffi.load'.cimgui_sdl = getFileName'cimgui_sdl'
 local imgui = require 'ffi.req' 'cimgui'
 print('cimgui library version:', ffi.string(imgui.igGetVersion()))
 print('cimgui header version ... missing a test!')
@@ -76,7 +70,6 @@ print('cimgui header version ... missing a test!')
 -- TODO ffi/vorbis/vorbisfile.lua has the ffi.load(vorbisfile) in it, and the prototype for vorbis_version_string
 -- but vorbis.so has the definition of vorbis_version_string in it
 -- but ffi/vorbis/codec.lua doesn't have a ffi.load(vorbis) in it ...
-require 'ffi.load'.vorbis = getFileName'vorbisfile'
 require 'ffi.req' 'vorbis.codec'
 local vorbis = require 'ffi.load' 'vorbis'
 print('vorbis library version: '..ffi.string(vorbis.vorbis_version_string()))
