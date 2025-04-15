@@ -12,7 +12,6 @@ local distarchdir = 'release/bin/'..ffi.os..'/'..ffi.arch
 
 -- [[ luajit
 local luajitVer = string.trim(io.readproc(distarchdir..'/luajit'..binext..' -v'))
-	:match'^LuaJIT (.*) %-'
 print('luajit version:', luajitVer)
 --]]
 
@@ -28,7 +27,7 @@ local function getLibName(name)
 end
 
 -- [[ luasocket
-print('luasocket version: '..require'socket'._VERSION:match'^LuaSocket (.*)$')
+print('luasocket version: '..require'socket'._VERSION)
 print('luasec version: '..require'ssl'._VERSION)
 --]]
 
@@ -37,6 +36,19 @@ require 'ffi.load'.png = getLibName'png'
 local png = require 'ffi.req' 'png'
 print('png header version:', png.PNG_LIBPNG_VER_STRING)
 print('png library version:', ffi.string(png.png_get_libpng_ver(nil)))
+--]]
+
+-- [[ tiff ... links png
+require 'ffi.load'.tiff = getLibName'tiff'
+local tiff = require 'ffi.req' 'tiff'
+print('tiff library version:', (ffi.string(tiff.TIFFGetVersion()):gsub('\n', ' ')))
+print('tiff header version:', (tiff.TIFFLIB_VERSION_STR:gsub('\n', ' ')))
+--]]
+
+-- [[ zlib ... used by png ... linked within png
+local zlib = require 'ffi.req' 'zlib'
+print('zlib library version:', ffi.string(zlib.zlibVersion()))
+print('zlib header version:', zlib.ZLIB_VERSION)
 --]]
 
 -- [[ sdl2
@@ -62,7 +74,7 @@ print('cimgui header version missing a test!')
 require 'ffi.load'.vorbis = getLibName'vorbisfile'
 require 'ffi.req' 'vorbis.codec'
 local vorbis = require 'ffi.load' 'vorbis'
-print('vorbis library version: '..ffi.string(vorbis.vorbis_version_string())) --:match'^Xiph%.Org libVorbis (.*)$')
+print('vorbis library version: '..ffi.string(vorbis.vorbis_version_string()))
 print('vorbis header version missing a test!')
 --]]
 
