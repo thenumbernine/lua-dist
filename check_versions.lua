@@ -104,11 +104,11 @@ print('vorbis library version:', ffi.string(vorbis.vorbis_version_string()))
 --]]
 
 -- TODO OGG ... I don't see a version query ...
-print('libogg library version ... missing a test!')
 print('libogg header version ... missing a test!')
+print('libogg library version ... missing a test!')
 -- TODO OpenAL ... just has some VERSION macro defines, no query
-print('libopenal library version ... missing a test!')
 print('libopenal header version ... missing a test!')
+print('libopenal library version ... missing a test!')
 -- TODO libclip
-print('libclip library version ... missing a test!')
 print('libclip header version ... missing a test!')
+print('libclip library version ... missing a test!')
