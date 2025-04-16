@@ -372,6 +372,7 @@ local function makeOSX()
 			-- https://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
 			[[DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"]],
 			[[cd $DIR/../Resources]],
+			[[export DYLD_LIBRARY_PATH="bin/OSX"]],
 			[[export LUA_PATH="./?.lua;./?/?.lua"]],
 			[[export LUA_CPATH="./?.so"]],
 			'./'..luaDistVer..' '

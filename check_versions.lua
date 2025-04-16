@@ -27,7 +27,7 @@ end
 
 -- [[ luajit
 local luajitVer = string.trim(io.readproc(luajit..' -v'))
-print('luajit version:', luajitVer)
+print('luajit version:', matchif(luajitVer, '^LuaJIT (.*) %-%- Copyright'))
 --]]
 
 -- [[ luasocket
@@ -35,6 +35,12 @@ local socket = op.land(pcall(require, 'socket'))
 print('luasocket version:', not socket and 'not found' or matchif(socket._VERSION, '^LuaSocket (.*)'))
 local ssl = op.land(pcall(require, 'ssl'))
 print('luasec version:', not ssl and 'not found' or ssl._VERSION)
+--]]
+
+-- [[ zlib ... used by png ... linked within png
+local zlib = require 'ffi.req' 'zlib'
+print('zlib header version:', zlib.ZLIB_VERSION)
+print('zlib library version:', ffi.string(zlib.zlibVersion()))
 --]]
 
 -- [[ png
@@ -46,6 +52,7 @@ print('png library version:', ffi.string(png.png_libpng_ver()))
 -- [[ turbojpeg's jpeglib
 local jpeg = require 'ffi.req' 'jpeg'	-- TODO rename to jpegturbo ?
 print('turbojpeg header version:', jpeg.LIBJPEG_TURBO_VERSION)	-- also LIBJPEG_TURBO_VERSION_NUMBER
+print('turbojpeg library version ... missing a test!')
 print('turbojpeg-jpeglib header version:', jpeg.JPEG_LIB_VERSION)		-- is this the libjpeg compatability version for libjpegturbo?  Maybe I should only care about this version number?
 -- there's no good runtime check, so here is our own ... maybe I'll move this to ffi/jpeg.lua
 -- https://stackoverflow.com/a/19116612
@@ -65,17 +72,11 @@ do
 end
 --]]
 
--- [[ tiff ... links png
+-- [[ tiff ... links jpeg, png, and zlib
 local tiff = require 'ffi.req' 'tiff'
 local tolua = require 'ext.tolua'
-print('tiff library version:', matchif(ffi.string(tiff.TIFFGetVersion()), '^LIBTIFF, Version ([^\n]*)\nCopyright'))
 print('tiff header version:', matchif(tiff.TIFFLIB_VERSION_STR, '^LIBTIFF, Version ([^\n]*)\nCopyright'))
---]]
-
--- [[ zlib ... used by png ... linked within png
-local zlib = require 'ffi.req' 'zlib'
-print('zlib library version:', ffi.string(zlib.zlibVersion()))
-print('zlib header version:', zlib.ZLIB_VERSION)
+print('tiff library version:', matchif(ffi.string(tiff.TIFFGetVersion()), '^LIBTIFF, Version ([^\n]*)\nCopyright'))
 --]]
 
 -- [[ sdl2
@@ -88,8 +89,8 @@ print('sdl library version:', sdlver.major..'.'..sdlver.minor..'.'..sdlver.patch
 
 -- [[ cimgui+sdl2+opengl3
 local imgui = require 'ffi.req' 'cimgui'
-print('cimgui library version:', ffi.string(imgui.igGetVersion()))
 print('cimgui header version ... missing a test!')
+print('cimgui library version:', ffi.string(imgui.igGetVersion()))
 --]]
 
 -- [[ vorbis ... 
@@ -98,16 +99,16 @@ print('cimgui header version ... missing a test!')
 -- but ffi/vorbis/codec.lua doesn't have a ffi.load(vorbis) in it ...
 require 'ffi.req' 'vorbis.codec'
 local vorbis = require 'ffi.load' 'vorbis'
-print('vorbis library version:', ffi.string(vorbis.vorbis_version_string()))
 print('vorbis header version ... missing a test!')
+print('vorbis library version:', ffi.string(vorbis.vorbis_version_string()))
 --]]
 
 -- TODO OGG ... I don't see a version query ...
-print('libogg header version ... missing a test!')
 print('libogg library version ... missing a test!')
+print('libogg header version ... missing a test!')
 -- TODO OpenAL ... just has some VERSION macro defines, no query
-print('libopenal header version ... missing a test!')
 print('libopenal library version ... missing a test!')
+print('libopenal header version ... missing a test!')
 -- TODO libclip
-print('libclip header version ... missing a test!')
 print('libclip library version ... missing a test!')
+print('libclip header version ... missing a test!')
