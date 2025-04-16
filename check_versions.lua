@@ -21,6 +21,9 @@ ffiload.vorbis = {Windows=archdir..'/vorbisfile.dll'}
 luajit = archdir..'/'..luajit
 --]]
 
+local function matchif(s, pat)
+	return s:match(pat) or s
+end
 
 -- [[ luajit
 local luajitVer = string.trim(io.readproc(luajit..' -v'))
@@ -29,9 +32,9 @@ print('luajit version:', luajitVer)
 
 -- [[ luasocket
 local socket = op.land(pcall(require, 'socket'))
-print('luasocket version: '..(socket and socket._VERSION or 'not found'))
+print('luasocket version:', not socket and 'not found' or matchif(socket._VERSION, '^LuaSocket (.*)'))
 local ssl = op.land(pcall(require, 'ssl'))
-print('luasec version: '..(ssl and ssl._VERSION or 'not found'))
+print('luasec version:', not ssl and 'not found' or ssl._VERSION)
 --]]
 
 -- [[ png
@@ -40,10 +43,33 @@ print('png header version:', png.PNG_LIBPNG_VER_STRING)
 print('png library version:', ffi.string(png.png_libpng_ver()))
 --]]
 
+-- [[ turbojpeg's jpeglib
+local jpeg = require 'ffi.req' 'jpeg'	-- TODO rename to jpegturbo ?
+print('turbojpeg header version:', jpeg.LIBJPEG_TURBO_VERSION)	-- also LIBJPEG_TURBO_VERSION_NUMBER
+print('turbojpeg-jpeglib header version:', jpeg.JPEG_LIB_VERSION)		-- is this the libjpeg compatability version for libjpegturbo?  Maybe I should only care about this version number?
+-- there's no good runtime check, so here is our own ... maybe I'll move this to ffi/jpeg.lua
+-- https://stackoverflow.com/a/19116612
+do
+	local jpeg_version = nil
+	local err_mgr = ffi.new'struct jpeg_error_mgr[1]'
+	local callback = ffi.cast('void(*)(j_common_ptr)', function(cinfo)
+		jpeg_version = cinfo[0].err[0].msg_parm.i[0]
+	end)
+	err_mgr[0].error_exit = callback
+	local cinfo = ffi.new'struct jpeg_decompress_struct[1]'
+	--cinfo[0].err = jpeg.jpeg_std_error(err_mgr)	-- what does jpeg_std_error do?
+	cinfo[0].err = err_mgr
+	jpeg.jpeg_CreateDecompress(cinfo, -1, ffi.sizeof(cinfo))	-- version -1 means it will error
+	callback:free()
+	print('turbojpeg-jpeglib library version:', jpeg_version)
+end
+--]]
+
 -- [[ tiff ... links png
 local tiff = require 'ffi.req' 'tiff'
-print('tiff library version:', (ffi.string(tiff.TIFFGetVersion()):gsub('\n', ' ')))
-print('tiff header version:', (tiff.TIFFLIB_VERSION_STR:gsub('\n', ' ')))
+local tolua = require 'ext.tolua'
+print('tiff library version:', matchif(ffi.string(tiff.TIFFGetVersion()), '^LIBTIFF, Version ([^\n]*)\nCopyright'))
+print('tiff header version:', matchif(tiff.TIFFLIB_VERSION_STR, '^LIBTIFF, Version ([^\n]*)\nCopyright'))
 --]]
 
 -- [[ zlib ... used by png ... linked within png
@@ -54,7 +80,7 @@ print('zlib header version:', zlib.ZLIB_VERSION)
 
 -- [[ sdl2
 local sdl = require 'ffi.req' 'sdl2'
-print('sdl header version:', sdl.SDL_MAJOR_VERSION..'.'..sdl.SDL_MINOR_VERSION..'.'..sdl.SDL_PATCHLEVEL..' compiled:'..sdl.SDL_COMPILEDVERSION)
+print('sdl header version:', sdl.SDL_MAJOR_VERSION..'.'..sdl.SDL_MINOR_VERSION..'.'..sdl.SDL_PATCHLEVEL..' / '..sdl.SDL_COMPILEDVERSION)
 local sdlver = ffi.new'SDL_version'
 sdl.SDL_GetVersion(sdlver)
 print('sdl library version:', sdlver.major..'.'..sdlver.minor..'.'..sdlver.patch)
