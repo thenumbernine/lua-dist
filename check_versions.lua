@@ -72,7 +72,7 @@ print('cimgui header version ... missing a test!')
 -- but ffi/vorbis/codec.lua doesn't have a ffi.load(vorbis) in it ...
 require 'ffi.req' 'vorbis.codec'
 local vorbis = require 'ffi.load' 'vorbis'
-print('vorbis library version: '..ffi.string(vorbis.vorbis_version_string()))
+print('vorbis library version:', ffi.string(vorbis.vorbis_version_string()))
 print('vorbis header version ... missing a test!')
 --]]
 
