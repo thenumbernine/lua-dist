@@ -49,6 +49,6 @@ Ideally these will fit with the `ffi/$binding.lua` generated from include files,
 - LibTIFF 4.7.0
 - LibOGG version
 - LibVorbis 1.3.7
-- cimgui+sdl2+opengl3 1.90.5 ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)
+- cimgui+sdl2+opengl3 1.90.5dock ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)
 - OpenAL version ... 1.1?  I think I'm using some other compat library ...
 - LibClip
