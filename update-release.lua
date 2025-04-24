@@ -1,9 +1,20 @@
 #!/usr/bin/env luajit
 local ffi = require 'ffi'
-local os = require 'ext.os'
 
 -- update files from install to here
+local cp = ffi.os == 'Windows' and 'copy' or 'cp'
+local soext = ffi.os == 'Windows' and '.dll' or (ffi.os == 'OSX' and '.dylib' or '.so')
+local libprefix = ffi.os == 'Windows' and '' or 'lib'
+local binext = ffi.os == 'Windows' and '.exe' or ''
 
+--local exec = require 'ext.os'.exec
+local exec = require 'make.exec'
+
+local function copy(src, dst)
+	exec((cp..' %q %q'):format(src, dst))
+end
+
+-- these are .so even in osx ... hmm ...
 local srcsopath = '/usr/local/lib/lua/5.1/'
 local dstsopath = 'release/bin/'..ffi.os..'/'..ffi.arch..'/'
 for _,f in ipairs{
@@ -15,7 +26,7 @@ for _,f in ipairs{
 	-- luasec
 	'ssl.so',
 } do
-	os.exec(('cp %q %q'):format(srcsopath..f, dstsopath..f))
+	copy(srcsopath..f, dstsopath..f)
 end
 
 local srcluapath = '/usr/local/share/luajit-2.1/'
@@ -35,7 +46,7 @@ for _,f in ipairs{
 	'ssl.lua',
 	'ssl/https.lua',
 } do
-	os.exec(('cp %q %q'):format(srcluapath..f, dstluapath..f))
+	copy(srcluapath..f, dstluapath..f)
 end
 
 local srcbinpath = '/usr/local/bin/'
@@ -43,20 +54,22 @@ local dstbinpath = dstsopath
 for _,f in ipairs{
 	'luajit'
 } do
-	os.exec(('cp %q %q'):format(srcbinpath..f, dstbinpath..f))
+	local f = f..binext
+	copy(srcbinpath..f, dstbinpath..f)
 end
 
 local srclibpath = '/usr/local/lib/'
 local dstlibpath = dstsopath
 for _,f in ipairs{
-	'libSDL2.dylib',
-	'libcimgui_sdl.dylib',
-	'libclip.dylib',
-	'libogg.dylib',
-	'libpng.dylib',
-	'libtiff.dylib',
-	'libvorbis.dylib',
-	'libvorbisfile.dylib',
+	'SDL2',
+	'cimgui_sdl',
+	'clip',
+	'ogg',
+	'png',
+	'tiff',
+	'vorbis',
+	'vorbisfile',
 } do
-	os.exec(('cp %q %q'):format(srclibpath..f, dstlibpath..f))
+	local f = libprefix .. f .. soext
+	copy(srclibpath..f, dstlibpath..f)
 end
