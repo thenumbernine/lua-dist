@@ -41,14 +41,14 @@ Looks like I am putting all OS-specific directory stuff into `bin/$OS/$arch` for
 
 Ideally these will fit with the `ffi/$binding.lua` generated from include files, which would be:
 - luajit2-OpenResty github tags/v2.1-20250117 aka version 2.1.1737090214 ... built with `LUAJIT_ENABLE_LUA52COMPAT` enabled
-- luasocket version ...
-- luasec version ...
-- SDL2 version 2.32.4
-- LibPNG version 1.6.47
-- zlib version 1.2.12 is used by LibPNG 1.6.47
-- LibTIFF 4.7.0
+- luasocket version ... 47e5bd71a95a0a36ef5b02e5bf3af3fcab7a4409 ... since checking out v3.1.0 still has the version string set as "3.0.0"
+- luasec version tags/v1.3.2
+- SDL2 version tags/release-2.32.4
+- LibPNG version tags/1.6.47
+- zlib version tags/1.3.1
+- LibTIFF tags/4.7.0
 - LibOGG version
-- LibVorbis 1.3.7
+- LibVorbis tags/1.3.7
 - cimgui+sdl2+opengl3 1.90.5dock ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)
 - OpenAL version ... 1.1?  I think I'm using some other compat library ...
 - LibClip
