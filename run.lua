@@ -84,18 +84,22 @@ assert(files)
 
 -- hmmm hmmmmm
 -- sometimes my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
+luaDistVer = luaDistVer or 'luajit'
 print("luaDistVer", luaDistVer)
-assert(luaDistVer == 'luajit')
+assert.eq(luaDistVer, 'luajit')
+
 -- TODO have a per-OS varible or something?  here? idk?
---local realLuaDistVer = 'luajit-openresty-2.1.0'
 local realLuaDistVer = 'luajit'
+assert.eq(realLuaDistVer, 'luajit')
 
 
 local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
 local projectsDir = os.getenv'LUA_PROJECT_PATH'
 -- where to find and copy luajit executable binary from
 
-local dstbinpath = distProjectDir/'release/bin'/ffi.os/ffi.arch
+local function getDestBinPath(os, arch)
+	return distProjectDir/'release/bin'/os/arch
+end
 
 -- TODO replace all exec(cp) and exec(rsync) with my own copy
 -- or at least something that works on all OS's
@@ -261,13 +265,16 @@ local function makeWin(arch)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
-	
+
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
 
+	local dstbinpath = getDestBinPath('Windows', arch)
+
 	-- copy luajit
 	copyFileToDir(dstbinpath, luaDistVer..'.exe', binDir)
-	copyFileToDir(dstbinpath, 'luajit-2.1.0-beta3-openresty.dll', binDir)
+	--copyFileToDir(dstbinpath, 'luajit-2.1.0-beta3-openresty.dll', binDir)
+	copyFileToDir(dstbinpath, 'luajit-openresty-v2.1-20250117.dll', binDir)
 
 	-- copy body
 	copyBody(dataDir)
@@ -283,7 +290,7 @@ local function makeWin(arch)
 				--'lib',
 			} do
 				local fn = basefn..'.'..ext
-				if path(dstbinpath)(fn):exists() then
+				if dstbinpath(fn):exists() then
 					copyFileToDir(dstbinpath, fn, binDir)
 				else
 					print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
@@ -301,8 +308,10 @@ end
 
 -- osx goes in dist/osx/${name}.app/Contents/
 local function makeOSX()
+	assert.eq(ffi.arch, 'x64', "don't know what bits of arch this is (32? 64? etc?)")
+	local distName = name..'-osx'
 	-- the osx-specific stuff:
-	local osDir = distDir/'osx'
+	local osDir = distDir/distName
 	osDir:mkdir()
 	osDir(name..'.app'):mkdir()
 	local contentsDir = osDir(name..'.app/Contents')
@@ -371,6 +380,8 @@ local function makeOSX()
 	-- copy body
 	copyBody(resourcesDir)
 
+	local dstbinpath = getDestBinPath('OSX', 'x64')
+
 	-- ffi osx so's
 	local libs = getLuajitLibs'osx'
 	if libs then
@@ -378,12 +389,18 @@ local function makeOSX()
 		resBinDir:mkdir(true)
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.dylib'
-			if path(dstbinpath)(fn):exists() then
+			if dstbinpath(fn):exists() then
 				copyFileToDir(dstbinpath, fn, resBinDir)
 			else
 				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
 			end
 		end
+	end
+
+	-- now make the zip
+	if not cmdline.dontZip then
+		distDir(distName..'.zip'):remove()
+		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
 	end
 end
 
@@ -410,17 +427,16 @@ end
 
 -- should I include binaries in the linux distribution?
 local function makeLinux(arch)
-	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
-	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
+	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
 	local distName = name..'-linux'..bits
 	local osDir = distDir/distName
 	osDir:mkdir()
-	
+
 	-- this is where luajit is relative to the runtime cwd
 	local binDirRel = path'bin/Linux'/arch
 
 	makeLinuxScript(osDir, binDirRel)
-	
+
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
@@ -445,12 +461,14 @@ local function makeLinux(arch)
 	-- copy body
 	copyBody(dataDir)
 
+	local dstbinpath = getDestBinPath('Linux', arch)
+
 	-- copy ffi linux so's
 	-- same as Windows
 	if libs then
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.so'
-			if path(dstbinpath)(fn):exists() then
+			if dstbinpath(fn):exists() then
 				copyFileToDir(dstbinpath, fn, binDir)
 			else
 				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
@@ -468,7 +486,7 @@ end
 local function makeLinuxWin64()
 	local arch = 'x64'
 	local distName = name..'-linux-win-64'
-	
+
 	-- [[ BEGIN MATCHING makeLinux
 	local osDir = distDir/distName
 	osDir:mkdir()
@@ -481,7 +499,7 @@ local function makeLinuxWin64()
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
-	
+
 	local libs = getLuajitLibs'linux'
 	local binDir
 	if includeLuaBinary or libs then
@@ -493,6 +511,9 @@ local function makeLinuxWin64()
 		copyFileToDir('/usr/local/bin', realLuaDistVer, binDir)
 	end
 
+	-- TODO this whole function is probably broken, and probabyl doesn't need to exist
+	local dstbinpath = getDestBinPath('Linux', arch)
+
 	-- copy body
 	copyBody(dataDir)
 
@@ -501,14 +522,14 @@ local function makeLinuxWin64()
 	if libs then
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.so'
-			if path(dstbinpath)(fn):exists() then
+			if dstbinpath(fn):exists() then
 				copyFileToDir(dstbinpath, fn, binDir)
 			else
 				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
 			end
 		end
 	end
-	--]]	
+	--]]
 
 	-- now copy the run_Windows dir to dataDir/bin/Windows
 	copyDirToDir(distProjectDir/'bin/Windows', '.', dataDir/'bin/Windows')
