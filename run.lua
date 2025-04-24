@@ -94,25 +94,8 @@ local realLuaDistVer = 'luajit'
 local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
 local projectsDir = os.getenv'LUA_PROJECT_PATH'
 -- where to find and copy luajit executable binary from
-local luaBinDirs = {
-	Windows = homeDir..'\\bin\\'..ffi.arch,
-}
--- where to find and copy dlls/so/dylibs from
-local libDirs = {
-	Windows = {
-		homeDir..'\\bin\\'..ffi.arch,
-		'C:\\Windows\\System32',
-	},
-	Linux = {
-		'/usr/local/lib',
-		'/usr/lib/x86_64-linux-gnu',
-	},
-	OSX = {
-		'/usr/local/lib',
-	},
-}
--- TODO use luarocks more
 
+local dstbinpath = distProjectDir/'release/bin'/ffi.os/ffi.arch
 
 -- TODO replace all exec(cp) and exec(rsync) with my own copy
 -- or at least something that works on all OS's
@@ -241,8 +224,7 @@ end
 
 -- the windows-specific stuff:
 local function makeWin(arch)
-	assert(arch == 'x86' or arch == 'x64', "expected arch to be x86 or x64")
-	local bits = assert( ({x86='32',x64='64'})[arch], "don't know what bits of arch this is (32? 64? etc?)")
+	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
 	local distName = name..'-win'..bits
 	local osDir = distDir/distName
 	osDir:mkdir()
@@ -250,30 +232,33 @@ local function makeWin(arch)
 	local binDirRel = path'bin/Windows'/arch
 	local runbatname = makeWinScript(arch, osDir, binDirRel)
 
-	-- [[ make the .lnk file since some computers give a warning when launching a .bat file
-	local runlnkname = 'run-'..arch..'.lnk'
-	--exec('shortcut /f:"'..(osDir/runlnkname)..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
-	-- https://stackoverflow.com/a/30029955
-	-- should I finally switch from .bat to .ps1?
-	-- don't use exec cuz it gsub's all /'s to \'s ... which it wouldn't need to do if i just always called fixpath everywhere ... TODO
-	-- TODO escaping ... i think it saves the lnk with *MY* COMSPEC, not the string "%COMSPEC%"
-	-- looks like putting a '+' in the string prevents the %'s from being used as env var delimiters ...
-	-- but still it wraps the TargetPath with "'s
-	--  one answer says put this after the string: -replace "`"|'"
-	-- but doesn't seem to help
-	-- it seems if the file is already there then powershell will modify it and append the targetpath instead of writing a new link so ...
-	-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
-	local runlnkpath = osDir/runlnkname
-	runlnkpath:remove()
-	local cmd = table{
-		"$s=(New-Object -COM WScript.Shell).CreateShortcut('"..runlnkpath.."');",
-		"$s.TargetPath='%'+'COMSPEC'+'%';",
-		"$s.Arguments='/c "..runbatname.."';",
-		"$s.Save()",
-	}:concat()
-	exec('powershell "'..cmd..'"')
-	--]]
-	
+	-- TODO how to do this when we're not on Windows?
+	if ffi.os == 'Windows' then
+		-- [[ make the .lnk file since some computers give a warning when launching a .bat file
+		local runlnkname = 'run-'..arch..'.lnk'
+		--exec('shortcut /f:"'..(osDir/runlnkname)..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
+		-- https://stackoverflow.com/a/30029955
+		-- should I finally switch from .bat to .ps1?
+		-- don't use exec cuz it gsub's all /'s to \'s ... which it wouldn't need to do if i just always called fixpath everywhere ... TODO
+		-- TODO escaping ... i think it saves the lnk with *MY* COMSPEC, not the string "%COMSPEC%"
+		-- looks like putting a '+' in the string prevents the %'s from being used as env var delimiters ...
+		-- but still it wraps the TargetPath with "'s
+		--  one answer says put this after the string: -replace "`"|'"
+		-- but doesn't seem to help
+		-- it seems if the file is already there then powershell will modify it and append the targetpath instead of writing a new link so ...
+		-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
+		local runlnkpath = osDir/runlnkname
+		runlnkpath:remove()
+		local cmd = table{
+			"$s=(New-Object -COM WScript.Shell).CreateShortcut('"..runlnkpath.."');",
+			"$s.TargetPath='%'+'COMSPEC'+'%';",
+			"$s.Arguments='/c "..runbatname.."';",
+			"$s.Save()",
+		}:concat()
+		exec('powershell "'..cmd..'"')
+		--]]
+	end
+
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 	
@@ -281,8 +266,8 @@ local function makeWin(arch)
 	binDir:mkdir(true)
 
 	-- copy luajit
-	copyFileToDir(luaBinDirs.Windows, luaDistVer..'.exe', binDir)
-	copyFileToDir(luaBinDirs.Windows, 'luajit-2.1.0-beta3-openresty.dll', binDir)
+	copyFileToDir(dstbinpath, luaDistVer..'.exe', binDir)
+	copyFileToDir(dstbinpath, 'luajit-2.1.0-beta3-openresty.dll', binDir)
 
 	-- copy body
 	copyBody(dataDir)
@@ -298,16 +283,10 @@ local function makeWin(arch)
 				--'lib',
 			} do
 				local fn = basefn..'.'..ext
-				local found
-				for _,srcdir in ipairs(libDirs.Windows) do
-					if path(srcdir)(fn):exists() then
-						copyFileToDir(srcdir, fn, binDir)
-						found = true
-						break
-					end
-				end
-				if not found then
-					print("couldn't find library "..fn.." in paths "..tolua(libDirs.Windows))
+				if path(dstbinpath)(fn):exists() then
+					copyFileToDir(dstbinpath, fn, binDir)
+				else
+					print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
 				end
 			end
 		end
@@ -399,16 +378,10 @@ local function makeOSX()
 		resBinDir:mkdir(true)
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.dylib'
-			local found
-			for _,srcdir in ipairs(libDirs.OSX) do
-				if path(srcdir)(fn):exists() then
-					copyFileToDir(srcdir, fn, resBinDir)
-					found = true
-					break
-				end
-			end
-			if not found then
-				print("couldn't find library "..fn.." in paths "..tolua(libDirs.OSX))
+			if path(dstbinpath)(fn):exists() then
+				copyFileToDir(dstbinpath, fn, resBinDir)
+			else
+				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
 			end
 		end
 	end
@@ -477,16 +450,10 @@ local function makeLinux(arch)
 	if libs then
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.so'
-			local found
-			for _,srcdir in ipairs(libDirs.Linux) do
-				if path(srcdir)(fn):exists() then
-					copyFileToDir(srcdir, fn, binDir)
-					found = true
-					break
-				end
-			end
-			if not found then
-				print("couldn't find library "..fn.." in paths "..tolua(libDirs.Linux))
+			if path(dstbinpath)(fn):exists() then
+				copyFileToDir(dstbinpath, fn, binDir)
+			else
+				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
 			end
 		end
 	end
@@ -534,16 +501,10 @@ local function makeLinuxWin64()
 	if libs then
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.so'
-			local found
-			for _,srcdir in ipairs(libDirs.Linux) do
-				if path(srcdir)(fn):exists() then
-					copyFileToDir(srcdir, fn, binDir)
-					found = true
-					break
-				end
-			end
-			if not found then
-				print("couldn't find library "..fn.." in paths "..tolua(libDirs.Linux))
+			if path(dstbinpath)(fn):exists() then
+				copyFileToDir(dstbinpath, fn, binDir)
+			else
+				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
 			end
 		end
 	end

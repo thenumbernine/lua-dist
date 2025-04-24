@@ -2,6 +2,7 @@
 local ffi = require 'ffi'
 local path = require 'ext.path'
 local table = require 'ext.table'
+local assert = require 'ext.assert'
 local os = require 'ext.os'
 
 -- update files from install to here
@@ -9,6 +10,8 @@ local cp = ffi.os == 'Windows' and 'copy' or 'cp'
 local soext = ffi.os == 'Windows' and '.dll' or (ffi.os == 'OSX' and '.dylib' or '.so')
 local libprefix = ffi.os == 'Windows' and '' or 'lib'
 local binext = ffi.os == 'Windows' and '.exe' or ''
+
+local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
 
 local exec = os.exec
 --local exec = require 'make.exec'
@@ -19,7 +22,9 @@ local function copy(src, dst, mode)
 		cp,
 		src:escape(),
 		dst:escape(),
-	}:concat' ')
+	}
+	:append(ffi.os == 'Windows' and {'/Y'} or {})
+	:concat' ')
 	if ffi.os ~= 'Windows' then
 		exec(table{
 			'chmod',
@@ -29,9 +34,35 @@ local function copy(src, dst, mode)
 	end
 end
 
+--[[
+args:
+	filename
+	srcs
+	dst
+	mode
+--]]
+local function copyFirst(args)
+	local found
+	for _,srcdir in ipairs(assert.index(args, 'srcs')) do
+		local srcpath = path(srcdir)/f
+		if srcpath:exists() then
+			copy(srcpath, assert.index(args, 'dst')/f, args.mode)
+			found = true
+			break
+		end
+	end
+	-- if none found then complain
+	if not found then
+		print("couldn't find "..f)
+	end
+	return found
+end
+
+-- should I be putting luarocks libraries and normie libraries in the same place?
+local dstbinpath = path'release/bin'/ffi.os/ffi.arch
+
+-- copy luarocks libraries
 -- these are .so even in osx ... hmm ...
-local srcsopath = path'/usr/local/lib/lua/5.1/'
-local dstsopath = path'release/bin/'/ffi.os/ffi.arch
 for _,f in ipairs{
 	-- luasocket
 	'mime/core.so',
@@ -41,12 +72,16 @@ for _,f in ipairs{
 	-- luasec
 	'ssl.so',
 } do
-	copy(srcsopath/f, dstsopath/f)
+	copy(
+		path'/usr/local/lib/lua/5.1'/f,
+		dstbinpath/f
+	)
 end
 
-local srcluapath = path'/usr/local/share/luajit-2.1/'
-local dstluapath = path'release/'
+-- copy luarocks lua files
+local dstluapath = path'release'
 for _,f in ipairs{
+	-- luasocket
 	'ltn12.lua',
 	'mbox.lua',
 	'mime.lua',
@@ -61,20 +96,33 @@ for _,f in ipairs{
 	'ssl.lua',
 	'ssl/https.lua',
 } do
-	copy(srcluapath/f, dstluapath/f)
+	copy(
+		-- src
+		path(assert.index({
+			OSX = function() return '/usr/local/share/luajit-2.1/' end,
+			Linux = function() return '/usr/local/share/lua/5.1/' end,
+			Windows = function() error'TODO' end,
+		}, ffi.os)()) / f,
+		-- dest
+		dstluapath / f)
 end
 
-local srcbinpath = path'/usr/local/bin/'
-local dstbinpath = dstsopath
-for _,f in ipairs{
-	'luajit',
-} do
-	local f = f..binext
-	local srcf = ffi.os == 'Linux' and 'luajit-2.1.1737090214' or f
-	copy(srcbinpath/srcf, dstbinpath/f, '755')
+-- copy luajit executable
+do
+	copy(
+		-- src
+		assert.index({
+			OSX = (path'/usr/local/bin/') / 'luajit',
+			Linux = (path'/usr/local/bin/') / 'luajit-2.1.1737090214',
+			Windows = homeDir..'\\bin\\'..ffi.arch..'\\luajit.exe',
+		}, ffi.os),
+		-- dest
+		dstbinpath / ('luajit'..binext),
+		'755'
+	)
 end
 
-local dstlibpath = dstsopath
+-- copy libraries
 for _,f in ipairs{
 	'SDL2',
 	'cimgui_sdl',
@@ -87,20 +135,21 @@ for _,f in ipairs{
 	'z',
 } do
 	local f = libprefix .. f .. soext
-	local found
-	for _,srclibpath in ipairs{
-		path'/usr/local/lib',
-		path'/usr/lib/x86_64-linux-gnu',
-	} do
-		local srcpath = srclibpath/f
-		if srcpath:exists() then
-			copy(srcpath, dstlibpath/f)
-			found = true
-			break
-		end
-	end
-	-- if none found then complain
-	if not found then
-		print("couldn't find "..f)
-	end
+	copyFirst{
+		filename = f,
+		srcs = assert.index({
+			OSX = {
+				'/usr/local/lib',
+			},
+			Linux = {
+				'/usr/local/lib',
+				'/usr/lib/x86_64-linux-gnu',
+			},
+			Windows = {
+				homeDir..'\\bin\\'..ffi.arch,
+				'C:\\Windows\\System32',
+			},
+		}, ffi.os),
+		dst = dstbinpath,
+	}
 end
