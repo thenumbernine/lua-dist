@@ -13,7 +13,7 @@ local binext = ffi.os == 'Windows' and '.exe' or ''
 local exec = os.exec
 --local exec = require 'make.exec'
 
-local function copy(src, dst)
+local function copy(src, dst, mode)
 	dst:getdir():mkdir(true)
 	exec(table{
 		cp,
@@ -22,7 +22,8 @@ local function copy(src, dst)
 	}:concat' ')
 	if ffi.os ~= 'Windows' then
 		exec(table{
-			'chmod 644',
+			'chmod',
+			mode or '644',
 			dst:escape(),
 		}:concat' ')
 	end
@@ -69,7 +70,7 @@ for _,f in ipairs{
 	'luajit'
 } do
 	local f = f..binext
-	copy(srcbinpath/f, dstbinpath/f)
+	copy(srcbinpath/f, dstbinpath/f, '755')
 end
 
 local srclibpath = path'/usr/local/lib/'
