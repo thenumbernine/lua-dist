@@ -40,7 +40,7 @@ Looks like I am putting all OS-specific directory stuff into `bin/$OS/$arch` for
 # Libraries to be packaged with?
 
 Ideally these will fit with the `ffi/$binding.lua` generated from include files, which would be:
-- luajit2-OpenResty github tags/v2.1-20250117 aka version 2.1.1737090214 ... built with `LUAJIT_ENABLE_LUA52COMPAT` enabled
+- luajit2-OpenResty git tags/v2.1-20250117 aka version 2.1.1737090214 ... built with `LUAJIT_ENABLE_LUA52COMPAT` enabled
 - luasocket version ... 47e5bd71a95a0a36ef5b02e5bf3af3fcab7a4409 ... since checking out v3.1.0 still has the version string set as "3.0.0"
 - luasec version tags/v1.3.2
 - SDL2 version tags/release-2.32.4

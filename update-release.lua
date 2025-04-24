@@ -67,10 +67,11 @@ end
 local srcbinpath = path'/usr/local/bin/'
 local dstbinpath = dstsopath
 for _,f in ipairs{
-	'luajit'
+	'luajit',
 } do
 	local f = f..binext
-	copy(srcbinpath/f, dstbinpath/f, '755')
+	local srcf = ffi.os == 'Linux' and 'luajit-2.1.1737090214' or f
+	copy(srcbinpath/srcf, dstbinpath/f, '755')
 end
 
 local srclibpath = path'/usr/local/lib/'
