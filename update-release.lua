@@ -1,4 +1,6 @@
 #!/usr/bin/env luajit
+local ffi = require 'ffi'
+local os = require 'ext.os'
 
 -- update files from install to here
 
