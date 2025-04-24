@@ -74,7 +74,6 @@ for _,f in ipairs{
 	copy(srcbinpath/srcf, dstbinpath/f, '755')
 end
 
-local srclibpath = path'/usr/local/lib/'
 local dstlibpath = dstsopath
 for _,f in ipairs{
 	'SDL2',
@@ -85,7 +84,23 @@ for _,f in ipairs{
 	'tiff',
 	'vorbis',
 	'vorbisfile',
+	'z',
 } do
 	local f = libprefix .. f .. soext
-	copy(srclibpath/f, dstlibpath/f)
+	local found
+	for _,srclibpath in ipairs{
+		path'/usr/local/lib',
+		path'/usr/lib/x86_64-linux-gnu',
+	} do
+		local srcpath = srclibpath/f
+		if srcpath:exists() then
+			copy(srcpath, dstlibpath/f)
+			found = true
+			break
+		end
+	end
+	-- if none found then complain
+	if not found then
+		print("couldn't find "..f)
+	end
 end
