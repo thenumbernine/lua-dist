@@ -28,7 +28,8 @@ targets:
 	win32 = Windows/x32
 	win64 = Windows/x64
 	linux = Linux/x64
-	osx = OSX/x64
+	linux-appimage = Linux/x64 AppImage
+	osx = OSX/x64 .app
 	all = run all of them
 	webserver = idk what I was doing with this one
 --]]
@@ -405,8 +406,8 @@ local function makeOSX()
 end
 
 -- TODO change runshpath based on arch? run-linux32 vs run-linux64
-local function makeLinuxScript(osDir, binDirRel)
-	local runshpath = osDir/'run-linux.sh'
+local function makeLinuxScript(osDir, binDirRel, scriptName, dontPipe)
+	local runshpath = osDir/(scriptName or 'run-linux.sh')
 	runshpath:write(
 		table{
 			[[#!/usr/bin/env bash]],
@@ -419,7 +420,7 @@ local function makeLinuxScript(osDir, binDirRel)
 			-- this is binDir relative to dataDir
 			binDirRel..'/'..realLuaDistVer..' '
 				..(getLuaArgs'linux' or '')
-				..' > ../out.txt 2> ../err.txt',
+				..(dontPipe and '' or ' > ../out.txt 2> ../err.txt'),
 		}:concat'\n'..'\n'
 	)
 	exec('chmod +x '..runshpath)
@@ -481,6 +482,94 @@ local function makeLinux(arch)
 		distDir(distName..'.zip'):remove()
 		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
 	end
+end
+
+-- make for x64 only because I just don't have the x32 builds
+local function makeLinuxAppImage()
+	local distName = name..'-x86_64.AppDir'
+	local osDir = distDir/distName
+	osDir:mkdir()
+
+	local arch = 'x64' -- TODO also 'x86' packaged together
+	local binDirRel = path'bin/Linux'/arch	-- this is where luajit is relative to the runtime cwd
+
+	--[[ do I just do AppRun here, and have the .desktop run it?
+	makeLinuxScript(osDir, binDirRel, 'AppRun')
+	--]]
+	-- [[ or do I put the run in the usual place?
+	makeLinuxScript(osDir, binDirRel, nil, true)
+	(osDir/'AppRun'):write[[
+#!/bin/sh
+cd $APPDIR
+./run-linux.sh "$@"
+]]
+	--]]
+
+	local dataDir = osDir/'data'
+	dataDir:mkdir()
+
+	local libs = getLuajitLibs'linux'
+	local binDir
+	if includeLuaBinary or libs then
+		binDir = dataDir/binDirRel
+		binDir:mkdir(true)
+	end
+		-- copy luajit
+	if includeLuaBinary then
+		--[[
+		local luajitPath = path((string.trim(io.readproc'which luajit')))
+		local dir, name = luajitPath:getdir()
+		copyFileToDir(dir, name, binDir)
+		--]]
+		-- [[
+		copyFileToDir('/usr/local/bin', realLuaDistVer, binDir)
+		--]]
+	end
+
+	-- copy body
+	copyBody(dataDir)
+
+	local dstbinpath = getDestBinPath('Linux', arch)
+
+	-- copy ffi linux so's
+	-- same as Windows
+	if libs then
+		for _,basefn in ipairs(libs) do
+			local fn = 'lib'..basefn..'.so'
+			if dstbinpath(fn):exists() then
+				copyFileToDir(dstbinpath, fn, binDir)
+			else
+				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
+			end
+		end
+	end
+
+	-- TODO myapp.desktop file .  is it myapp.desktop or is it *my app*.desktop ?
+	(osDir/(name'.desktop')):write(
+		table{
+			'[Desktop Entry]',
+			'Name='..name,			-- the name here has to match the dir being ${name}-x86_64.AppDir
+			'Exec=run-linux.sh',	-- wait, should this be AppRun, or should it be run-linux.sh and AppRun points to run-linux.sh as well?
+
+			--[[
+			Icon is weird one.
+			It has to be there.  You can't have no icon.  So TODO I need a default AppImage icon in the dist project here.
+			You can't have an extension on the entry here, this just has to match the <file>.png I guess.
+			--]]
+			'Icon='..name,
+
+			'Type=Application',
+			'Categories='..(AppImageCategories or 'Utility'),
+
+		}:concat'\n'..'\n'
+	)
+
+	-- TODO myapp.png for the icon
+	-- cp from AppImageIcon to osDir/${name}.png
+	exec('cp '..(distProjectDir/assert(AppImageIcon)):escape()..' '..(osDir/(name..'.png')):escape())
+
+	distDir:cd()
+	assert(os.exec('ARCH=x86_64 appimagetool '..distName))
 end
 
 local function makeLinuxWin64()
@@ -568,6 +657,7 @@ if targets.all or targets.osx then makeOSX() end
 if targets.all or targets.win32 then makeWin('x86') end
 if targets.all or targets.win64 then makeWin('x64') end
 if targets.all or targets.linux then makeLinux('x64') end
+if targets.all or targets['linux-appimage'] then makeLinuxAppImage() end
 if targets.linuxWin64 then makeLinuxWin64() end	-- build linux/windows x64 ... until I rethink how to break things apart and make them more modular ...
 -- hmm ... I'll finish that lazy hack later
 --if targets.all or targets.webserver then makeWebServer() end
