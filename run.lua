@@ -39,6 +39,8 @@ ffi = require 'ffi'
 require 'ext.env'(_G)
 local exec = require 'make.exec'
 
+local runDir = path:cwd()
+
 -- 'dist' project dir
 local fn = package.searchpath('dist', package.path):gsub('\\', '/')
 local distProjectDir = path(fn):getdir()
@@ -498,11 +500,13 @@ local function makeLinuxAppImage()
 	--]]
 	-- [[ or do I put the run in the usual place?
 	makeLinuxScript(osDir, binDirRel, nil, true)
-	(osDir/'AppRun'):write[[
+	local AppRunPath = osDir/'AppRun'
+	AppRunPath:write[[
 #!/bin/sh
 cd $APPDIR
 ./run-linux.sh "$@"
 ]]
+	exec('chmod +x '..AppRunPath:escape())
 	--]]
 
 	local dataDir = osDir/'data'
@@ -545,7 +549,7 @@ cd $APPDIR
 	end
 
 	-- TODO myapp.desktop file .  is it myapp.desktop or is it *my app*.desktop ?
-	(osDir/(name'.desktop')):write(
+	osDir(name..'.desktop'):write(
 		table{
 			'[Desktop Entry]',
 			'Name='..name,			-- the name here has to match the dir being ${name}-x86_64.AppDir
@@ -566,10 +570,18 @@ cd $APPDIR
 
 	-- TODO myapp.png for the icon
 	-- cp from AppImageIcon to osDir/${name}.png
-	exec('cp '..(distProjectDir/assert(AppImageIcon)):escape()..' '..(osDir/(name..'.png')):escape())
+	local srcIconPath
+	if not AppImageIcon then
+		error"TODO you needn AppImageIcon for AppImage"
+		-- TODO provide a default in dist/
+	else
+		srcIconPath = path(AppImageIcon)
+	end
+	exec('cp '..srcIconPath:escape()..' '..osDir(name..'.png'):escape())
 
 	distDir:cd()
 	assert(os.exec('ARCH=x86_64 appimagetool '..distName))
+	runDir:cd()
 end
 
 local function makeLinuxWin64()
