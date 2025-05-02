@@ -582,6 +582,17 @@ cd $APPDIR
 	distDir:cd()
 	assert(os.exec('ARCH=x86_64 appimagetool '..distName))
 	runDir:cd()
+
+
+--[[
+if you want config and home folder within the .AppImage during its launch:
+--appimage-portable-home		<=> $HOME
+--appimage-portable-config		<=> $XDG_CONFIG_HOME
+... but which shoudl I use in my code, especially to be cross-compatible with Windows
+btw where on Linux and Windows do apps typically save stuff
+Linux: $HOME/.config/<appName>/
+--]]
+
 end
 
 local function makeLinuxWin64()
