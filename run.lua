@@ -330,7 +330,7 @@ local function makeOSX()
 	resourcesDir:mkdir()
 
 	local iconProp = 'Icons'
-	local dstIconPath = resourcesDir/name..'.icns'
+	local dstIconPath = resourcesDir/(name..'.icns')
 	if iconOSX then
 		exec('cp '..path(iconOSX):escape()..' '..dstIconPath:escape())
 		iconProp = name
@@ -589,7 +589,7 @@ cd $APPDIR
 	local srcIconPath = icon and path(icon) or defaultIconPath
 	assert(srcIconPath:exists(), "AppImage requires an icon, and I couldn't find the icon file at "..srcIconPath)
 
-	local dstIconPath = osDir/name..'.png'
+	local dstIconPath = osDir/(name..'.png')
 	exec('cp '..srcIconPath:escape()..' '..dstIconPath:escape())
 
 	distDir:cd()
@@ -688,12 +688,20 @@ end
 print('targets', targets:concat', ')
 targets = targets:mapi(function(v) return true, v end):setmetatable(nil)
 distDir:mkdir()
+
+-- TODO icon-conversion makeicns support will probably break outside OSX.  If you have an icon then store a .icns as well in the repo, or only build .app on OSX.
 if targets.all or targets.osx then makeOSX() end
+
 -- TODO separate os/arch like ffi does? win32 => Windows/x86, win64 => Windows/x64
-if targets.all or targets.win32 then makeWin('x86') end
+--if targets.all or targets.win32 then makeWin('x86') end
+
 if targets.all or targets.win64 then makeWin('x64') end
+
 if targets.all or targets.linux then makeLinux('x64') end
+
+-- TODO this will always break outside Linux
 if targets.all or targets['linux-appimage'] then makeLinuxAppImage() end
+
 if targets.linuxWin64 then makeLinuxWin64() end	-- build linux/windows x64 ... until I rethink how to break things apart and make them more modular ...
 -- hmm ... I'll finish that lazy hack later
 --if targets.all or targets.webserver then makeWebServer() end
