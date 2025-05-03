@@ -23,6 +23,12 @@ The `distinfo` file should contain the following variables:
 
 `name` = name of project
 
+`icon` = (optional) filename to icon.
+- For AppImage, it must be present, and must be a `.png`, and all the docs mention "i.e. 256x256" but don't specify any hard constraints of the size.
+- For OSX, icons must be in `.icns` format, and to generate it `makeicns` must be installed.
+
+`iconOSX` = (optional) filename to an `.icns` icon used with OSX `.app` files.  If you set `icon` but not `iconOSX` then lua-dist will try to generate the `.icns` file using `makeicns`.
+
 `luaArgs` = lua args, or
 - table of platform-specific lua args, with the first entry being the default,
 - `win` being the windows-specific args
@@ -40,8 +46,6 @@ Some day I should put those packages' submodules in here and allow building them
 AppImage configuration has the following variables:
 
 `AppImageCategories` = `Categories` of AppImage `.desktop` file.
-
-`AppImageIcon` = AppImage `.desktop` file icon, must be a PNG file.
 
 
 # Current Directory Setup

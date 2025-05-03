@@ -45,6 +45,8 @@ local runDir = path:cwd()
 local fn = package.searchpath('dist', package.path):gsub('\\', '/')
 local distProjectDir = path(fn):getdir()
 
+local defaultIconPath = distProjectDir'default-icon.png'
+
 -- set 'all' to run all
 local targets = table(cmdline.targets)
 if #targets == 0 then
@@ -317,8 +319,29 @@ local function makeOSX()
 	local osDir = distDir/distName
 	osDir:mkdir()
 	osDir(name..'.app'):mkdir()
+
 	local contentsDir = osDir(name..'.app/Contents')
 	contentsDir:mkdir()
+
+	local macOSDir = contentsDir/'MacOS'
+	macOSDir:mkdir()
+
+	local resourcesDir = contentsDir/'Resources'
+	resourcesDir:mkdir()
+
+	local iconProp = 'Icons'
+	local dstIconPath = resourcesDir/name..'.icns'
+	if iconOSX then
+		exec('cp '..path(iconOSX):escape()..' '..dstIconPath:escape())
+		iconProp = name
+	--elseif icon then	-- if no icon then use OSX default icon
+	else				-- if no icon then use Dist default icon
+		if exec('makeicns -in '..path(icon or defaultIconPath):escape()..' -out '..dstIconPath:escape(), false) then
+			-- only use the icon if makeicns didn't error
+			iconProp = name
+		end
+	end
+
 	contentsDir'PkgInfo':write'APPLhect'
 	contentsDir'Info.plist':write([[
 <?xml version="1.0" encoding="UTF-8"?>
@@ -332,7 +355,7 @@ local function makeOSX()
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>CFBundleIconFile</key>
-	<string>Icons</string>
+	<string>]]..iconProp..[[</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>English</string>
 	<key>CFBundleDocumentTypes</key>
@@ -352,9 +375,6 @@ local function makeOSX()
 </dict>
 </plist>]])
 
-	local macOSDir = contentsDir/'MacOS'
-	macOSDir:mkdir()
-
 	-- lemme double check the dir structure on this ...
 	local runshpath = macOSDir/'run-osx.sh'
 	runshpath:write(
@@ -372,9 +392,6 @@ local function makeOSX()
 		}:concat'\n'..'\n'
 	)
 	exec('chmod +x '..runshpath)
-
-	local resourcesDir = contentsDir/'Resources'
-	resourcesDir:mkdir()
 
 	-- copy luajit
 	local luajitPath = path(string.trim(io.readproc('which '..luaDistVer)))
@@ -560,7 +577,7 @@ cd $APPDIR
 			It has to be there.  You can't have no icon.  So TODO I need a default AppImage icon in the dist project here.
 			You can't have an extension on the entry here, this just has to match the <file>.png I guess.
 			--]]
-			'Icon='..name,
+			'Icon='..name,	-- matches dstIconPath's name is ${name}.png
 
 			'Type=Application',
 			'Categories='..(AppImageCategories or 'Utility'),
@@ -568,16 +585,12 @@ cd $APPDIR
 		}:concat'\n'..'\n'
 	)
 
-	-- TODO myapp.png for the icon
-	-- cp from AppImageIcon to osDir/${name}.png
-	local srcIconPath
-	if not AppImageIcon then
-		error"TODO you needn AppImageIcon for AppImage"
-		-- TODO provide a default in dist/
-	else
-		srcIconPath = path(AppImageIcon)
-	end
-	exec('cp '..srcIconPath:escape()..' '..osDir(name..'.png'):escape())
+	-- cp from icon to osDir/${name}.png
+	local srcIconPath = icon and path(icon) or defaultIconPath
+	assert(srcIconPath:exists(), "AppImage requires an icon, and I couldn't find the icon file at "..srcIconPath)
+
+	local dstIconPath = osDir/name..'.png'
+	exec('cp '..srcIconPath:escape()..' '..dstIconPath:escape())
 
 	distDir:cd()
 	assert(os.exec('ARCH=x86_64 appimagetool '..distName))
