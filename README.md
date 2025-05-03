@@ -15,7 +15,7 @@ Usage:
 /path/to/dist/run.lua [platform]
 ```
 
-Where `platform` is `all` or one of the following: `osx, win32, win64, linux`.
+Where `platform` is `all` or one of the following: `osx, win32, win64, linux, linux-appimage`.
 
 This requires a `distinfo` file to be present in the working directory.
 
