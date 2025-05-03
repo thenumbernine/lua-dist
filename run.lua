@@ -80,9 +80,6 @@ assert(#targets > 0, "don't have any targets to build for")
 -- 'dist' local dir for this project
 local distDir = path'dist'
 
--- hmm just always do this?
-includeLuaBinary = true
-
 assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
 assert(files)
@@ -92,10 +89,6 @@ assert(files)
 luaDistVer = luaDistVer or 'luajit'
 print("luaDistVer", luaDistVer)
 assert.eq(luaDistVer, 'luajit')
-
--- TODO have a per-OS varible or something?  here? idk?
-local realLuaDistVer = 'luajit'
-assert.eq(realLuaDistVer, 'luajit')
 
 
 local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
@@ -271,10 +264,10 @@ local function makeWin(arch)
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
+	local dstbinpath = getDestBinPath('Windows', arch)
+
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
-
-	local dstbinpath = getDestBinPath('Windows', arch)
 
 	-- copy luajit
 	copyFileToDir(dstbinpath, luaDistVer..'.exe', binDir)
@@ -393,14 +386,13 @@ local function makeOSX()
 	)
 	exec('chmod +x '..runshpath)
 
+	local dstbinpath = getDestBinPath('OSX', 'x64')
+
 	-- copy luajit
-	local luajitPath = path(string.trim(io.readproc('which '..luaDistVer)))
-	exec('cp '..luajitPath:escape()..' '..resourcesDir:escape())
+	copyFileToDir(dstbinpath, luaDistVer, resourcesDir)
 
 	-- copy body
 	copyBody(resourcesDir)
-
-	local dstbinpath = getDestBinPath('OSX', 'x64')
 
 	-- ffi osx so's
 	local libs = getLuajitLibs'osx'
@@ -437,7 +429,7 @@ local function makeLinuxScript(osDir, binDirRel, scriptName, dontPipe)
 			-- this line is needed for ffi's load to work
 			[[export LD_LIBRARY_PATH=]]..binDirRel:escape(),
 			-- this is binDir relative to dataDir
-			binDirRel..'/'..realLuaDistVer..' '
+			binDirRel..'/'..luaDistVer..' '
 				..(getLuaArgs'linux' or '')
 				..(dontPipe and '' or ' > ../out.txt 2> ../err.txt'),
 		}:concat'\n'..'\n'
@@ -460,31 +452,18 @@ local function makeLinux(arch)
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
-	local libs = getLuajitLibs'linux'
-	local binDir
-	if includeLuaBinary or libs then
-		binDir = dataDir/binDirRel
-		binDir:mkdir(true)
-	end
-		-- copy luajit
-	if includeLuaBinary then
-		--[[
-		local luajitPath = path((string.trim(io.readproc'which luajit')))
-		local dir, name = luajitPath:getdir()
-		copyFileToDir(dir, name, binDir)
-		--]]
-		-- [[
-		copyFileToDir('/usr/local/bin', realLuaDistVer, binDir)
-		--]]
-	end
-
 	-- copy body
 	copyBody(dataDir)
 
 	local dstbinpath = getDestBinPath('Linux', arch)
 
+	local binDir = dataDir/binDirRel
+	binDir:mkdir(true)
+	copyFileToDir(dstbinpath, luaDistVer, binDir)
+
 	-- copy ffi linux so's
 	-- same as Windows
+	local libs = getLuajitLibs'linux'
 	if libs then
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.so'
@@ -529,31 +508,18 @@ cd $APPDIR
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
-	local libs = getLuajitLibs'linux'
-	local binDir
-	if includeLuaBinary or libs then
-		binDir = dataDir/binDirRel
-		binDir:mkdir(true)
-	end
-		-- copy luajit
-	if includeLuaBinary then
-		--[[
-		local luajitPath = path((string.trim(io.readproc'which luajit')))
-		local dir, name = luajitPath:getdir()
-		copyFileToDir(dir, name, binDir)
-		--]]
-		-- [[
-		copyFileToDir('/usr/local/bin', realLuaDistVer, binDir)
-		--]]
-	end
-
 	-- copy body
 	copyBody(dataDir)
 
 	local dstbinpath = getDestBinPath('Linux', arch)
 
+	local binDir = dataDir/binDirRel
+	binDir:mkdir(true)
+	copyFileToDir(dstbinpath, luaDistVer, binDir)
+
 	-- copy ffi linux so's
 	-- same as Windows
+	local libs = getLuajitLibs'linux'
 	if libs then
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.so'
@@ -625,25 +591,19 @@ local function makeLinuxWin64()
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
-	local libs = getLuajitLibs'linux'
-	local binDir
-	if includeLuaBinary or libs then
-		binDir = dataDir/binDirRel
-		binDir:mkdir(true)
-	end
-		-- copy luajit
-	if includeLuaBinary then
-		copyFileToDir('/usr/local/bin', realLuaDistVer, binDir)
-	end
+	-- copy body
+	copyBody(dataDir)
 
 	-- TODO this whole function is probably broken, and probabyl doesn't need to exist
 	local dstbinpath = getDestBinPath('Linux', arch)
 
-	-- copy body
-	copyBody(dataDir)
+	local binDir = dataDir/binDirRel
+	binDir:mkdir(true)
+	copyFileToDir(dstbinpath, luaDistVer, binDir)
 
 	-- copy ffi linux so's
 	-- same as Windows
+	local libs = getLuajitLibs'linux'
 	if libs then
 		for _,basefn in ipairs(libs) do
 			local fn = 'lib'..basefn..'.so'
