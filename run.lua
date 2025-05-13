@@ -281,7 +281,7 @@ local function makeWin(arch)
 	local libs = getLuajitLibs'win'
 	if libs then
 		for _,basefn in ipairs(libs) do
-			for _,fn in ipairs{basefn..'.'..ext, basefn} do
+			for _,fn in ipairs{basefn..'.dll', basefn} do
 				if distBinPath(fn):exists() then
 					if distBinPath(fn):isdir() then
 						copyDirToDir(distBinPath, fn, binDir)
