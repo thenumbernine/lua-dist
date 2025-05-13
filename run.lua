@@ -96,7 +96,7 @@ local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
 local projectsDir = os.getenv'LUA_PROJECT_PATH'
 -- where to find and copy luajit executable binary from
 
-local function getDestBinPath(os, arch)
+local function getDistBinPath(os, arch)
 	return distProjectDir/'release/bin'/os/arch
 end
 
@@ -265,13 +265,13 @@ local function makeWin(arch)
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
-	local dstbinpath = getDestBinPath('Windows', arch)
+	local distBinPath = getDistBinPath('Windows', arch)
 
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
 
 	-- copy luajit
-	copyFileToDir(dstbinpath, luaDistVer..'.exe', binDir)
+	copyFileToDir(distBinPath, luaDistVer..'.exe', binDir)
 
 	-- copy body
 	copyBody(dataDir)
@@ -281,16 +281,15 @@ local function makeWin(arch)
 	local libs = getLuajitLibs'win'
 	if libs then
 		for _,basefn in ipairs(libs) do
-			for _,ext in ipairs{
-				'dll',
-				-- I don't need this, do I?
-				--'lib',
-			} do
-				local fn = basefn..'.'..ext
-				if dstbinpath(fn):exists() then
-					copyFileToDir(dstbinpath, fn, binDir)
+			for _,fn in ipairs{basefn..'.'..ext, basefn} do
+				if distBinPath(fn):exists() then
+					if distBinPath(fn):isdir() then
+						copyDirToDir(distBinPath, fn, binDir)
+					else
+						copyFileToDir(distBinPath, fn, binDir)
+					end
 				else
-					print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
+					print("couldn't find library "..fn.." in paths "..tolua(distBinPath))
 				end
 			end
 		end
@@ -385,10 +384,10 @@ local function makeOSX()
 	)
 	exec('chmod +x '..runshpath)
 
-	local dstbinpath = getDestBinPath('OSX', 'x64')
+	local distBinPath = getDistBinPath('OSX', 'x64')
 
 	-- copy luajit
-	copyFileToDir(dstbinpath, luaDistVer, resourcesDir)
+	copyFileToDir(distBinPath, luaDistVer, resourcesDir)
 
 	-- copy body
 	copyBody(resourcesDir)
@@ -399,11 +398,16 @@ local function makeOSX()
 		local resBinDir = resourcesDir/'bin/OSX'
 		resBinDir:mkdir(true)
 		for _,basefn in ipairs(libs) do
-			local fn = 'lib'..basefn..'.dylib'
-			if dstbinpath(fn):exists() then
-				copyFileToDir(dstbinpath, fn, resBinDir)
-			else
-				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
+			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
+				if distBinPath(fn):exists() then
+					if distBinPath(fn):isdir() then
+						copyDirToDir(distBinPath, fn, binDir)
+					else
+						copyFileToDir(distBinPath, fn, resBinDir)
+					end
+				else
+					print("couldn't find library "..fn.." in paths "..tolua(distBinPath))
+				end
 			end
 		end
 	end
@@ -454,22 +458,27 @@ local function makeLinux(arch)
 	-- copy body
 	copyBody(dataDir)
 
-	local dstbinpath = getDestBinPath('Linux', arch)
+	local distBinPath = getDistBinPath('Linux', arch)
 
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
-	copyFileToDir(dstbinpath, luaDistVer, binDir)
+	copyFileToDir(distBinPath, luaDistVer, binDir)
 
 	-- copy ffi linux so's
 	-- same as Windows
 	local libs = getLuajitLibs'linux'
 	if libs then
 		for _,basefn in ipairs(libs) do
-			local fn = 'lib'..basefn..'.so'
-			if dstbinpath(fn):exists() then
-				copyFileToDir(dstbinpath, fn, binDir)
-			else
-				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
+			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
+				if distBinPath(fn):exists() then
+					if distBinPath(fn):isdir() then
+						copyDirToDir(distBinPath, fn, binDir)
+					else
+						copyFileToDir(distBinPath, fn, binDir)
+					end
+				else
+					print("couldn't find library "..fn.." in paths "..tolua(distBinPath))
+				end
 			end
 		end
 	end
@@ -510,22 +519,27 @@ cd $APPDIR
 	-- copy body
 	copyBody(dataDir)
 
-	local dstbinpath = getDestBinPath('Linux', arch)
+	local distBinPath = getDistBinPath('Linux', arch)
 
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
-	copyFileToDir(dstbinpath, luaDistVer, binDir)
+	copyFileToDir(distBinPath, luaDistVer, binDir)
 
 	-- copy ffi linux so's
 	-- same as Windows
 	local libs = getLuajitLibs'linux'
 	if libs then
 		for _,basefn in ipairs(libs) do
-			local fn = 'lib'..basefn..'.so'
-			if dstbinpath(fn):exists() then
-				copyFileToDir(dstbinpath, fn, binDir)
-			else
-				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
+			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
+				if distBinPath(fn):exists() then
+					if distBinPath(fn):isdir() then
+						copyDirToDir(distBinPath, fn, binDir)
+					else
+						copyFileToDir(distBinPath, fn, binDir)
+					end
+				else
+					print("couldn't find library "..fn.." in paths "..tolua(distBinPath))
+				end
 			end
 		end
 	end
@@ -593,23 +607,27 @@ local function makeLinuxWin64()
 	-- copy body
 	copyBody(dataDir)
 
-	-- TODO this whole function is probably broken, and probabyl doesn't need to exist
-	local dstbinpath = getDestBinPath('Linux', arch)
+	local distBinPath = getDistBinPath('Linux', arch)
 
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
-	copyFileToDir(dstbinpath, luaDistVer, binDir)
+	copyFileToDir(distBinPath, luaDistVer, binDir)
 
 	-- copy ffi linux so's
 	-- same as Windows
 	local libs = getLuajitLibs'linux'
 	if libs then
 		for _,basefn in ipairs(libs) do
-			local fn = 'lib'..basefn..'.so'
-			if dstbinpath(fn):exists() then
-				copyFileToDir(dstbinpath, fn, binDir)
-			else
-				print("couldn't find library "..fn.." in paths "..tolua(dstbinpath))
+			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
+				if distBinPath(fn):exists() then
+					if distBinPath(fn):isdir() then
+						copyDirToDir(distBinPath, fn, binDir)
+					else
+						copyFileToDir(distBinPath, fn, binDir)
+					end
+				else
+					print("couldn't find library "..fn.." in paths "..tolua(distBinPath))
+				end
 			end
 		end
 	end
