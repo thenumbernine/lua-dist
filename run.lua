@@ -214,7 +214,7 @@ local function makeWinScript(arch, osDir, binDirRel)
 			'cd data',
 			[[set PATH=%PATH%;]]..binDirRel,
 			[[set LUA_PATH=./?.lua;./?/?.lua]],
-			[[set LUA_CPATH=./?.dll]],
+			[[set LUA_CPATH=./?.dll;bin/Windows/]]..arch..[[/?.dll]],
 			binDirRel(luaDistVer..'.exe')..' '
 				..(getLuaArgs'win' or '')
 				..' > ..\\out.txt 2> ..\\err.txt',
