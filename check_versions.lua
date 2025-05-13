@@ -6,7 +6,7 @@ local io = require 'ext.io'
 local op = require 'ext.op'
 
 local archdir = 'release/bin/'..ffi.os..'/'..ffi.arch
-local binext = ffi.os == 'Windows' and '.ext' or ''
+local binext = ffi.os == 'Windows' and '.exe' or ''
 local luajit = 'luajit'..binext
 
 --[[ use a local copy instead of whatever system location is in ffi.load
