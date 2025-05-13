@@ -272,8 +272,6 @@ local function makeWin(arch)
 
 	-- copy luajit
 	copyFileToDir(dstbinpath, luaDistVer..'.exe', binDir)
-	--copyFileToDir(dstbinpath, 'luajit-2.1.0-beta3-openresty.dll', binDir)
-	copyFileToDir(dstbinpath, 'luajit-openresty-v2.1-20250117.dll', binDir)
 
 	-- copy body
 	copyBody(dataDir)
