@@ -79,6 +79,7 @@ assert(#targets > 0, "don't have any targets to build for")
 
 -- 'dist' local dir for this project
 local distDir = path'dist'
+assert(distDir.cd, "lfs_ffi might not have loaded correctly. check lfs_ffi.")
 
 assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
