@@ -72,3 +72,72 @@ Ideally these will fit with the `ffi/$binding.lua` generated from include files,
 - cimgui+sdl2+opengl3 1.90.5dock ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)
 - OpenAL version ... 1.1?  I think I'm using some other compat library ...
 - LibClip - My [fork](https://github.com/thenumbernine/clip).  Does any one know of a good cross-platform clipboard library that handles text, images (including 8bpp indexed), audio, etc?
+
+
+# TODO
+
+Really this is great and all, but, it's packaging too much.
+
+How to tell it which supporting DLLs go with which other DLLS?
+
+I should from the start in lua-include, in lua-ffi-bindings, and here, be collecting the following per-3rd-party-library:
+- how to install?  git address, tag #, apt, brew, etc package name.
+- how to generate bindings?
+- which libraries are dependent
+
+That means in lua-ffi-bindings, change it from one flat directory to instead have multiple named ones ... heck , maybe lua-ffi-bindings shouldn't exist for 3rd party bindings, but only for ISO-C / POSIX bindings?
+
+And then *somewhere*, maybe in lua-ffi-bindings, maybe in lua-include, maybe just the root folder, *somewhere* each library should have some kind of `distinfo` or whatever in it that says those things above (how to install deps, how to gen bindings, etc)
+
+And then lua-dist, here, shouldn't hold its own bindings (each 3rd party lib's own bindings-folder should hold them).
+lua-dist here should just be wrangling them - and only the needed 3rd-party-binding-folders - and only the associated-per-os-libs that should be stored in those folders - and from that making the per-os-distributable file.
+
+So each 3rd-party-folder should have in it:
+- install info.  ex: lib-clip:
+``` Lua
+{
+	git = 'https://github.com/thenumbernine/clip/'
+	branch = 'master', -- or maybe tag = '1.2.3',
+	build = 'cmake',	-- or maybe build = 'mkdir build && cd build && cmake ..',
+	-- and then maybe some info on where to find the built binary, and where to package it per-OS
+},
+```
+
+- lua-include generation information. ex: lib-clip:
+``` Lua
+{
+	inc = '<cclip.h>',
+	--out = 'cclip.lua',
+	-- and this would before go into 'ffi/cclip.lua'
+	-- ... maybe it should go somewhere per-3rd-party like ...
+	out = 'clip/ffi.lua',
+	final = function(code)
+		code = code .. "\nreturn require 'ffi.load' 'clip'\n"	-- load libclip.so / libclip.dylib / clip.dll
+		return code
+	end,
+},
+```
+- lua-api-interface.  i.e. contents of `https://github.com/thenumbernine/lua-clip`
+So really I'm proposing to merge the per-3rd-party stuff into their own individual folders.
+Final result would look like:
+- clip/
+	- `clip.lua` (or if you don't have `?/?.lua` in your path, this goes in root)
+	- `install/`-- or maybe this is just a single file
+		- that "install info" above
+	- `make-ffi/` or include/ or binding/ or generate-bindings/ or something ...
+		- that "lua-include generation information" above ...
+		- ... maybe this can be a single file too ... maybe merge it with the 'install' file ... maybe merge it with the 'distinfo' file ... maybe merge it with '.rockspec' file ...
+	- `ffi.lua` -- this would be what was stored in lua-ffi-bindings' `ffi/clip.lua`
+	- `bin`	-- store binary distributables here.  seems to be polluting repos. but in the name of easily producing cross-platform-distributables...
+		- `$os/`
+			- `$arch/`
+				- `[lib]clip.[so|dylib|dll]`
+
+Then, in `clip.lua`, instead of going to ffi/clip.lua and trusting that another repo is there there, we would go to clip/ffi.lua.
+
+Then for installation, we just copy these folders as they are.
+
+But what about search paths?  Especially `$PATH` and especially `$LUA_CPATH` ...
+
+I'm thinking, put `$LUA_CPATH` libraries, i.e. luasocket and luasec, into their own folder, separate of the bin folder ... typically lua searches for scripts in `/usr/share/lua/` and lua libs in `/usr/lib/lua/`, but I want `lib/` for the system libs that ffi will link into,
+so maybe I'll put `$LUA_CPATH` libs into another folder like `lualib/`...
