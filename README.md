@@ -148,3 +148,7 @@ Or maybe just take any repo as-is, like the `clip` C++/cmake repo, and just give
 - what the binding-generation info is
 - where the lua-path directory is (distlua/share by default?)
 - where the lua-cpath direcory is (distlua/lib by default?)
+
+Maybe I should make these subdirs for my projects ...
+And then for 3rd party ones, like SDL GLES etc, put those all in subfolders of `lua-include`
+And then when running, amend all the lua paths together ...  or just distribute them first, aka "compile", aka why am I using lua and not C++?
