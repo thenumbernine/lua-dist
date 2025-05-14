@@ -141,3 +141,10 @@ But what about search paths?  Especially `$PATH` and especially `$LUA_CPATH` ...
 
 I'm thinking, put `$LUA_CPATH` libraries, i.e. luasocket and luasec, into their own folder, separate of the bin folder ... typically lua searches for scripts in `/usr/share/lua/` and lua libs in `/usr/lib/lua/`, but I want `lib/` for the system libs that ffi will link into,
 so maybe I'll put `$LUA_CPATH` libs into another folder like `lualib/`...
+
+Or maybe just take any repo as-is, like the `clip` C++/cmake repo, and just give it a `distinfo` file that tells it:
+- where the install-binary-libraries can be found
+- ... and where to copy them (distlua/bin by default?)
+- what the binding-generation info is
+- where the lua-path directory is (distlua/share by default?)
+- where the lua-cpath direcory is (distlua/lib by default?)
