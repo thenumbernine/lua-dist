@@ -39,6 +39,8 @@ The `distinfo` file should contain the following variables:
 - all directory structure other than the base is preserved in the copy
 - copies from `base/file` to `dist/data/directory/file`
 
+`deps` = key/value where the resulting `key/value/` path is searched for another `distinfo` file to determine which files to copy.
+
 `luajitLibs` = Table of luajit libs to use, with platform-specific overrides similar to luaArgs.
 This is being phased out in favor of the packaged distributables, to ensure version consistency among all OS's.
 Some day I should put those packages' submodules in here and allow building them per-environment.

@@ -85,6 +85,14 @@ assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
 assert(files)
 
+-- hack for now: just merge deps into files
+-- TODO later: search each for a 'distinfo' file of its own to decide what to copy over.
+if deps then
+	for k,v in pairs(deps) do
+		files[k] = table(files[k]):append(v)
+	end
+end
+
 -- hmmm hmmmmm
 -- sometimes my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
 luaDistVer = luaDistVer or 'luajit'
@@ -93,8 +101,6 @@ assert.eq(luaDistVer, 'luajit')
 
 
 local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
-local projectsDir = os.getenv'LUA_PROJECT_PATH'
--- where to find and copy luajit executable binary from
 
 local function getDistBinPath(os, arch)
 	return distProjectDir/'release/bin'/os/arch
