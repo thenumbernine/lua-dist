@@ -2,6 +2,8 @@
 
 # Distribution for Lua Projects
 
+- `run.lua`:
+
 This will make the following:
 - An OSX `.app` file that will run in OSX.
 - A Windows `.zip` with a folder that contains `run.bat`.
@@ -21,6 +23,20 @@ This requires a `distinfo` file to be present in the working directory.
 
 The `distinfo` file should contain the following variables:
 
+`files` = key/value map where the keys is the base directory and the values are what files to copy
+- all directory structure other than the base is preserved in the copy
+- copies from `base/file` to `dist/data/directory/file`
+
+`deps` = key/value where the resulting `key/value/` path is searched for another `distinfo` file to determine which files to copy.
+
+`luajitLibs` = Table of luajit libs to use, with platform-specific overrides similar to luaArgs.
+This is being phased out in favor of the packaged distributables, to ensure version consistency among all OS's.
+Some day I should put those packages' submodules in here and allow building them per-environment.
+
+TODO someday, move these out of `dist/release` and into their specific packages.  Maybe put the stragglers/wrappers in either `dist/` or `include/`, and put the 3rd party equivalent `include/include-list.lua` contents in with it.
+
+### application configuration variables:
+
 `name` = name of project
 
 `icon` = (optional) filename to icon.
@@ -35,20 +51,22 @@ The `distinfo` file should contain the following variables:
 - `osx` being the OSX-specific args
 - `linux` being the windows-specific args
 
-`files` = key/value map where the keys is the base directory and the values are what files to copy
-- all directory structure other than the base is preserved in the copy
-- copies from `base/file` to `dist/data/directory/file`
-
-`deps` = key/value where the resulting `key/value/` path is searched for another `distinfo` file to determine which files to copy.
-
-`luajitLibs` = Table of luajit libs to use, with platform-specific overrides similar to luaArgs.
-This is being phased out in favor of the packaged distributables, to ensure version consistency among all OS's.
-Some day I should put those packages' submodules in here and allow building them per-environment.
-
-AppImage configuration has the following variables:
+### AppImage configuration has the following variables:
 
 `AppImageCategories` = `Categories` of AppImage `.desktop` file.
 
+# Other Scripts:
+
+- `dist.lua`: This is a shorthand wrapper so that ideally `luajit -ldist` does the same as `/path/to/dist/run.lua` would.
+
+- `check_versions.lua`: This is a helper script for printing out the include-binding version and the library version of a few installed libraries.
+
+- `update-release.lua`: This copies the binaries from your OS folders to the `release/bin/$os/$arch/` folder.  This is a design aspect I'm rethinking.
+
+- `build-distinfo.rua`: Run this from a repo's cwd to have it produce a `distinfo` library file.  The file will contain:
+- - the library/cwd name
+- - a list of files from the repo
+- - a parsed scan of those files for `require()` for any dependent `distinfo`-based repos.
 
 # Current Directory Setup
 
@@ -154,3 +172,25 @@ Or maybe just take any repo as-is, like the `clip` C++/cmake repo, and just give
 Maybe I should make these subdirs for my projects ...
 And then for 3rd party ones, like SDL GLES etc, put those all in subfolders of `lua-include`
 And then when running, amend all the lua paths together ...  or just distribute them first, aka "compile", aka why am I using lua and not C++?
+
+options for new 'distinfo' 'files' format for lua-libraries:
+```
+files = {
+	--[[
+	--['*.lua'] = 'ext/*.lua',	-- dest pattern match ?
+	['*.lua'] = 'ext/',	-- or just file-to-dir syntax, i.e. equiv of 'mv' command?
+	['LICENSE'] = 'ext/',
+	['README.md'] = 'ext/',
+	--]]
+	-- [[ or if you don't mind the rockspec:
+	-- and then check each against git and warn/ignore those not in git
+	['*'] = 'ext/',
+	-- so
+	-- 1) key=number means source and dest are the value are the same
+	-- 2) key=string means key = source and value = dest
+	-- 3) dest = folder means same behaviour as shell cp / mv
+	-- idk should I deal with **'s or patterns or anything else?
+	-- maybe even a #4 implicit ['*'] = cwd's filename if no 'files' exists?
+	--]]
+}
+```

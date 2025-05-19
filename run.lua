@@ -85,6 +85,13 @@ assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
 assert(files)
 
+error[[
+TODO for files:
+1) key=number means source and dest are the value are the same
+2) key=string means key = source and value = dest
+3) dest = folder means same behaviour as shell cp / mv
+]]
+
 -- hack for now: just merge deps into files
 -- TODO later: search each for a 'distinfo' file of its own to decide what to copy over.
 if deps then
