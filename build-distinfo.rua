@@ -42,13 +42,14 @@ search = [x] do
 		and k ~= 'parent'	-- TODO need a list of child keys
 		and k ~= 'parser'
 		then
-			if v.type == 'call' 
+			if v.type == 'call'
 			and v.func.type == 'var'
 			and v.func.name == 'require'
 			and v.args[1].type == 'string'
 			then
 				local req = v.args[1].value
 				if not builtinReqs[req] then
+--DEBUG:print('searching for require', req)
 					-- now here compare 'req' to our search path
 					-- even try to find a file
 					-- then go to its dir and look for a distinfo
@@ -58,19 +59,24 @@ search = [x] do
 					-- or search:
 					local filename, msg = package.searchpath(req, package.path)
 					if not filename then
-						print("WARNING require couldn't find path "..tolua(req))
+						print("WARNING require couldn't find path "..tolua(req)..": "..tolua(msg))
 					else
-						local dir = path(filename)
+						local dir = path(filename):abs()
+--DEBUG:print('searching filename for distinfo', filename, dir)
 						repeat
 							dir = dir:getdir()
+--DEBUG:print('...checking dir', dir, 'vs cwd', path:cwd(), dir == path:cwd())
 							local distpath = dir/'distinfo'
 							if distpath:exists() then
-								-- a) read the name from it
-								-- b) just assume its dir is the right dir
-								local _, name = dir:getdir()
-								deps[name] = true
+								if dir ~= path:cwd() then	-- ofc we depend on ourselves
+									-- a) read the name from it
+									-- b) just assume its dir is the right dir
+									local _, name = dir:getdir()
+									deps[name.path] = true
+								end
+								break
 							end
-						until dir.path ~= '/' do
+						until dir.path == '/'
 						if dir.path == '/' then
 							print("WARNING unable to find distinfo for require "..tolua(req).." file "..tolua(filename))
 						end
@@ -89,9 +95,6 @@ for _,f in ipairs(files) do
 		local parser = LuaParser()
 		local success, msg = parser:setData(data, source)
 		if not success then
-			if parser.t then
-				msg = parser.t:getpos()..': '..msg
-			end
 			print('WARNING - failed to parse '..f..': '..msg)
 		else
 			local tree = parser.tree
@@ -103,9 +106,6 @@ for _,f in ipairs(files) do
 		local parser = LuaFixedParser()
 		local success, msg = parser:setData(data, source)
 		if not success then
-			if parser.t then
-				msg = parser.t:getpos()..': '..msg
-			end
 			print('WARNING - failed to parse '..f..': '..msg)
 		else
 			local tree = parser.tree
