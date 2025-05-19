@@ -54,7 +54,27 @@ search = [x] do
 					-- then go to its dir and look for a distinfo
 					-- ...
 					-- or just take the first part here and use that as the dep
-					deps[req:split'%.'[1]] = true
+					--deps[req:split'%.'[1]] = true
+					-- or search:
+					local filename, msg = package.searchpath(req, package.path)
+					if not filename then
+						print("WARNING require couldn't find path "..tolua(req))
+					else
+						local dir = path(filename)
+						repeat
+							dir = dir:getdir()
+							local distpath = dir/'distinfo'
+							if distpath:exists() then
+								-- a) read the name from it
+								-- b) just assume its dir is the right dir
+								local _, name = dir:getdir()
+								deps[name] = true
+							end
+						until dir.path ~= '/' do
+						if dir.path == '/' then
+							print("WARNING unable to find distinfo for require "..tolua(req).." file "..tolua(filename))
+						end
+					end
 				end
 			end
 			search(v)
@@ -94,10 +114,12 @@ for _,f in ipairs(files) do
 	end
 end
 
-out:insert'deps = {'
-for _,k in ipairs(table.keys(deps):sort()) do
-	out:insert('\t'..tolua(k)..',')
+if next(deps) then
+	out:insert'deps = {'
+	for _,k in ipairs(table.keys(deps):sort()) do
+		out:insert('\t'..tolua(k)..',')
+	end
+	out:insert'}'
 end
-out:insert'}'
 
 print(out:concat'\n')
