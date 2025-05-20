@@ -59,7 +59,7 @@ search = [x] do
 					-- or search:
 					local filename, msg = package.searchpath(req, package.path)
 					if not filename then
-						print("WARNING require couldn't find path "..tolua(req)..": "..tolua(msg))
+						io.stderr:write("WARNING require couldn't find path "..tolua(req)..": "..tolua(msg)..'\n')
 					else
 						local dir = path(filename):abs()
 --DEBUG:print('searching filename for distinfo', filename, dir)
@@ -78,7 +78,7 @@ search = [x] do
 							end
 						until dir.path == '/'
 						if dir.path == '/' then
-							print("WARNING unable to find distinfo for require "..tolua(req).." file "..tolua(filename))
+							io.stderr:write("WARNING unable to find distinfo for require "..tolua(req).." file "..tolua(filename)..'\n')
 						end
 					end
 				end
@@ -95,7 +95,7 @@ for _,f in ipairs(files) do
 		local parser = LuaParser()
 		local success, msg = parser:setData(data, source)
 		if not success then
-			print('WARNING - failed to parse '..f..': '..msg)
+			io.stderr:write('WARNING - failed to parse '..f..': '..msg..'\n')
 		else
 			local tree = parser.tree
 			search(tree)
@@ -106,7 +106,7 @@ for _,f in ipairs(files) do
 		local parser = LuaFixedParser()
 		local success, msg = parser:setData(data, source)
 		if not success then
-			print('WARNING - failed to parse '..f..': '..msg)
+			io.stderr:write('WARNING - failed to parse '..f..': '..msg..'\n')
 		else
 			local tree = parser.tree
 			search(tree)
