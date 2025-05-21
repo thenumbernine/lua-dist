@@ -47,6 +47,7 @@ search = [x] do
 			and v.func.name == 'require'
 			and v.args[1].type == 'string'
 			then
+				-- TODO maybe if the require is inside a `pcall(require, somewhere)` then mark it as optional...
 				local req = v.args[1].value
 				if not builtinReqs[req] then
 --DEBUG:print('searching for require', req)
