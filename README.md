@@ -23,6 +23,8 @@ This requires a `distinfo` file to be present in the working directory.
 
 The `distinfo` file should contain the following variables:
 
+`startDir` = what path within the directory structure to start at.
+
 `files` = key/value map where the keys is the base directory and the values are what files to copy
 - all directory structure other than the base is preserved in the copy
 - copies from `base/file` to `dist/data/directory/file`

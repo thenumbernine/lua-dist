@@ -11,6 +11,11 @@ local LuaFixedParser = require 'langfix.parser'
 
 local out = table()
 
+out:insert'--------------------------------------------'
+out:insert'-- generated with dist/build-distinfo.rua --'
+out:insert'--------------------------------------------'
+out:insert''
+
 local dirname = path:cwd().path:split'/':last()
 out:insert('name = '..tolua(dirname))
 

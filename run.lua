@@ -85,21 +85,6 @@ assert(loadfile('distinfo', 'bt', _G))()
 assert(name)
 assert(files)
 
-error[[
-TODO for files:
-1) key=number means source and dest are the value are the same
-2) key=string means key = source and value = dest
-3) dest = folder means same behaviour as shell cp / mv
-]]
-
--- hack for now: just merge deps into files
--- TODO later: search each for a 'distinfo' file of its own to decide what to copy over.
-if deps then
-	for k,v in pairs(deps) do
-		files[k] = table(files[k]):append(v)
-	end
-end
-
 -- hmmm hmmmmm
 -- sometimes my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
 luaDistVer = luaDistVer or 'luajit'
@@ -107,7 +92,8 @@ print("luaDistVer", luaDistVer)
 assert.eq(luaDistVer, 'luajit')
 
 
-local homeDir = os.getenv'HOME' or os.getenv'USERPROFILE'
+local homeDir = path((assert(os.getenv'HOME' or os.getenv'USERPROFILE', "failed to find your home dir")))
+local projectsDir = homeDir/'Projects/lua'	-- where to find your distinfo files.  Sometimes I saved this in $LUA_PROJECTS_DIR
 
 local function getDistBinPath(os, arch)
 	return distProjectDir/'release/bin'/os/arch
@@ -177,31 +163,49 @@ local function copyDirToDir(basedir, srcdir, dstdir, pattern)
 	end
 end
 
-local function copyByDescTable(destDir, descTable)
+--[[
+baseDir = where to copy from
+destDir = where to copy to
+filesTable = k/v from/to
+--]]
+local function copyByDescTable(baseDir, destDir, filesTable)
+	baseDir = path(baseDir)
 	destDir = path(destDir)
-	assert(type(descTable) == 'table')
-	for base, filesForBase in pairs(descTable) do
-		-- evaluate any env vars
-		base = base:gsub('%$%b{}', function(w) return tostring(os.getenv(w:sub(3,-2))) end)
+	assert.type(filesTable, 'table')
+	for from, to in pairs(filesTable) do
+		local frompath = path(from)
+		local topath = path(to)
+		assert((baseDir/frompath):exists(), "failed to find file "..frompath)
 
-		if type(filesForBase) ~= 'table' then
-			error("failed on destDir "..destDir.." got descTable "..require 'ext.tolua'(descTable))
-		end
-		for _,srcfn in ipairs(filesForBase) do
-			local srcpath = path(base)(srcfn)
-			assert(srcpath:exists(), "couldn't find "..srcpath)
-			if srcpath:isdir() then
-				copyDirToDir(base, srcfn, destDir)
-			else
-				copyFileToDir(base, srcfn, destDir)
-			end
-		end
+		-- fixme maybe?
+		local fromdir, fromname = frompath:getdir()
+		local todir, toname = topath:getdir()
+		assert.eq(fromname, toname)
+--DEBUG:print('copyFileToDir', baseDir/fromdir, fromname, destDir/todir)
+		copyFileToDir(baseDir/fromdir, fromname, destDir/todir)
 	end
 end
 
--- the platform-independent stuff:
+-- copy the file+dep tree to our platform-specific location
 local function copyBody(destDir)
-	copyByDescTable(destDir, files)
+	copyByDescTable('.', destDir, files)
+	local allDeps = {}
+	local leftDeps = table(deps)
+	while #leftDeps > 0 do
+		local dep = leftDeps:remove(1)
+		if not allDeps[dep] then
+			allDeps[dep] = true
+			local depPath = projectsDir/dep
+			assert(depPath:exists(), "failed to find dependency base dir: "..depPath)
+			local distinfopath = depPath/'distinfo'
+			assert(distinfopath:exists(), "failed to find distinfo file: "..distinfopath)
+			local env = {}
+			local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
+			assert(env.files, "failed to find any files in distinfo of dep "..dep)
+			copyByDescTable(depPath, destDir, env.files)
+			leftDeps:append(env.deps)
+		end
+	end
 end
 
 -- returns t[plat], t[1], or t, depending on which exists and is a table
@@ -225,12 +229,14 @@ local function makeWinScript(arch, osDir, binDirRel)
 		table{
 			'setlocal',
 			'cd data',
-			[[set PATH=%PATH%;]]..binDirRel,
-			[[set LUA_PATH=./?.lua;./?/?.lua]],
-			[[set LUA_CPATH=./?.dll;bin/Windows/]]..arch..[[/?.dll]],
-			binDirRel(luaDistVer..'.exe')..' '
+			[[set ROOT=%CD%]],
+			[[set PATH=%PATH%;%ROOT%\]]..binDirRel,
+			[[set LUA_PATH=%ROOT%\?.lua;%ROOT%\?\?.lua;.\?.lua;.\?\?.lua]],
+			[[set LUA_CPATH=%ROOT%\bin\Windows\]]..arch..[[\?.dll]],
+			startDir and 'cd "'..startDir..'"' or '',
+			luaDistVer..'.exe'..' '
 				..(getLuaArgs'win' or '')
-				..' > ..\\out.txt 2> ..\\err.txt',
+				..' > "%ROOT%\\..\\out.txt" 2> "%ROOT%\\..\\err.txt"',
 			'cd ..',
 			'endlocal',
 		}:concat'\r\n'..'\r\n'
@@ -387,12 +393,15 @@ local function makeOSX()
 			-- https://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
 			[[DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"]],
 			[[cd $DIR/../Resources]],
-			[[export DYLD_LIBRARY_PATH="bin/OSX"]],
-			[[export LUA_PATH="./?.lua;./?/?.lua"]],
-			[[export LUA_CPATH="./?.so"]],
-			'./'..luaDistVer..' '
+			[[export ROOT=`pwd`]],
+			[[export PATH="$ROOT/bin/OSX/x64"]],
+			[[export DYLD_LIBRARY_PATH="$ROOT/bin/OSX/x64"]],
+			[[export LUA_PATH="$ROOT/?.lua;$ROOT/?/?.lua;./?.lua;./?/?.lua"]],
+			[[export LUA_CPATH="$ROOT/bin/OSX/x64/?.so"]],
+			startDir and 'cd "'..startDir..'"' or '',
+			luaDistVer..' '
 				..(getLuaArgs'osx' or '')
-				..' > out.txt 2> err.txt',
+				..' > "$ROOT/../out.txt" 2> "$ROOT/../err.txt"',
 		}:concat'\n'..'\n'
 	)
 	exec('chmod +x '..runshpath)
@@ -439,15 +448,18 @@ local function makeLinuxScript(osDir, binDirRel, scriptName, dontPipe)
 		table{
 			[[#!/usr/bin/env bash]],
 			'cd data',
-			[[export LUA_PATH="./?.lua;./?/?.lua"]],
-			[[export LUA_CPATH="./?.so"]],
+			[[export ROOT=`pwd`]],
+			[[export PATH="$ROOT/bin/Linux/x64"]],
 			-- this is binDir relative to dataDir
 			-- this line is needed for ffi's load to work
-			[[export LD_LIBRARY_PATH=]]..binDirRel:escape(),
+			[[export LD_LIBRARY_PATH="$ROOT/]]..binDirRel..'"',
+			[[export LUA_PATH="$ROOT/?.lua;$ROOT/?/?.lua;./?.lua;./?/?.lua"]],
 			-- this is binDir relative to dataDir
-			binDirRel..'/'..luaDistVer..' '
+			[[export LUA_CPATH="$ROOT/bin/Linux/x64/?.so"]],
+			startDir and 'cd "'..startDir..'"' or '',
+			luaDistVer..' '
 				..(getLuaArgs'linux' or '')
-				..(dontPipe and '' or ' > ../out.txt 2> ../err.txt'),
+				..(dontPipe and '' or ' > "$ROOT/../out.txt" 2> "$ROOT/../err.txt"'),
 		}:concat'\n'..'\n'
 	)
 	exec('chmod +x '..runshpath)
@@ -666,7 +678,7 @@ local function makeWebServer()
 
 	-- copy launch scripts
 	assert(launchScripts, "expected launchScripts")
-	copyByDescTable(osDir, launchScripts)
+	error'update this call' copyByDescTable(osDir, launchScripts)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
