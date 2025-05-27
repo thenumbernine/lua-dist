@@ -203,6 +203,7 @@ local function copyBody(destDir)
 			local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
 			assert(env.files, "failed to find any files in distinfo of dep "..dep)
 			copyByDescTable(depPath, destDir, env.files)
+print(dep..' adding '..table.concat(env.deps or {}, ', '))
 			leftDeps:append(env.deps)
 		end
 	end
