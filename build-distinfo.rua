@@ -41,7 +41,7 @@ local builtinReqs = {
 local deps = {}
 
 local search
-search = [x] do
+search = |x| do
 	for k,v in pairs(x) do
 		if type(v) == 'table'
 		and k ~= 'parent'	-- TODO need a list of child keys
