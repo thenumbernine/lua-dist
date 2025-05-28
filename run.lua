@@ -318,7 +318,7 @@ local function makeWin(arch)
 	-- now make the zip
 	if not cmdline.dontZip then
 		distDir(distName..'.zip'):remove()
-		exec('cd dist && tar -a -c -f "'..distName..'.zip" "'..distName..'"')
+		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'"')
 	end
 end
 
