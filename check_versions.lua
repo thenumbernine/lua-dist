@@ -79,12 +79,14 @@ print('tiff header version:', matchif(tiff.TIFFLIB_VERSION_STR, '^LIBTIFF, Versi
 print('tiff library version:', matchif(ffi.string(tiff.TIFFGetVersion()), '^LIBTIFF, Version ([^\n]*)\nCopyright'))
 --]]
 
--- [[ sdl2
-local sdl = require 'ffi.req' 'sdl2'
-print('sdl header version:', sdl.SDL_MAJOR_VERSION..'.'..sdl.SDL_MINOR_VERSION..'.'..sdl.SDL_PATCHLEVEL..' / '..sdl.SDL_COMPILEDVERSION)
-local sdlver = ffi.new'SDL_version'
-sdl.SDL_GetVersion(sdlver)
-print('sdl library version:', sdlver.major..'.'..sdlver.minor..'.'..sdlver.patch)
+-- [[ sdl
+local sdl, SDLApp = require 'sdl.setup'()
+print('sdl header version:',
+	sdl.SDL_MAJOR_VERSION
+	..'.'..sdl.SDL_MINOR_VERSION
+	..'.'..(op.safeindex(sdl, 'SDL_PATCHLEVEL') or op.safeindex(sdl, 'SDL_MICRO_VERSION'))
+	..' / '..(op.safeindex(sdl, 'SDL_COMPILEDVERSION') or op.safeindex(sdl, 'SDL_VERSION')))
+print('sdl library version:', SDLApp.sdlGetVersion())
 --]]
 
 -- [[ cimgui+sdl2+opengl3
@@ -93,7 +95,7 @@ print('cimgui header version ... missing a test!')
 print('cimgui library version:', ffi.string(imgui.igGetVersion()))
 --]]
 
--- [[ vorbis ... 
+-- [[ vorbis ...
 -- TODO ffi/vorbis/vorbisfile.lua has the ffi.load(vorbisfile) in it, and the prototype for vorbis_version_string
 -- but vorbis.so has the definition of vorbis_version_string in it
 -- but ffi/vorbis/codec.lua doesn't have a ffi.load(vorbis) in it ...
