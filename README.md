@@ -2,7 +2,11 @@
 
 # Distribution for Lua Projects
 
-- `run.lua`:
+Chdir to your Lua project repository,
+
+make sure there is a `distinfo` file present,
+
+and run `../path/to/dist/run.lua`
 
 This will make the following:
 - An OSX `.app` file that will run in OSX.
