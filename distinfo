@@ -1,7 +1,7 @@
 name = "dist"
 files = {
-	[".github/FUNDING.yml"] = "dist/.github/FUNDING.yml",
 	["LICENSE"] = "dist/LICENSE",
+	["dist.rockspec"] = "dist/dist.rockspec",
 	["README.md"] = "dist/README.md",
 	["build-distinfo.rua"] = "dist/build-distinfo.rua",
 	["check_versions.lua"] = "dist/check_versions.lua",

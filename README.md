@@ -21,6 +21,10 @@ Where `platform` is `all` or one of the following: `osx, win32, win64, linux, li
 
 This requires a `distinfo` file to be present in the working directory.
 
+## The `distinfo` file:
+
+The `distinfo` file can be automatically created from a github repo by running `/path/to/dist/build-distinfo.rua`.  (The `.rua` extension is for my [langfix](https://github.com/thenumbernine/langfix-lua) script).
+
 The `distinfo` file should contain the following variables:
 
 `startDir` = what path within the directory structure to start at.
@@ -57,7 +61,7 @@ TODO someday, move these out of `dist/release` and into their specific packages.
 
 `AppImageCategories` = `Categories` of AppImage `.desktop` file.
 
-# Other Scripts:
+# Other Scripts In This Repo:
 
 - `dist.lua`: This is a shorthand wrapper so that ideally `luajit -ldist` does the same as `/path/to/dist/run.lua` would.
 
