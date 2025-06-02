@@ -228,6 +228,7 @@ local function makeWinScript(arch, osDir, binDirRel)
 	local runbatname = 'run-'..arch..'.bat'
 	(osDir/runbatname):write(
 		table{
+			'@echo off',
 			'setlocal',
 			'cd data',
 			[[set ROOT=%CD%]],
