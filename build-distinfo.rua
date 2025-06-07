@@ -41,7 +41,7 @@ local builtinReqs = {
 local deps = {}
 
 local search
-search = |x| do
+search = |x, useLangFix| do
 	for k,v in pairs(x) do
 		if type(v) == 'table'
 		and k ~= 'parent'	-- TODO need a list of child keys
@@ -63,7 +63,19 @@ search = |x| do
 					-- or just take the first part here and use that as the dep
 					--deps[req:split'%.'[1]] = true
 					-- or search:
-					local filename, msg = package.searchpath(req, package.path)
+					local searchpath = package.path
+					if useLangFix then
+						-- taken from langfix/run.lua:
+						local parts = searchPath:split';'
+						for i=#parts,1,-1 do
+							local name, ext = path(parts[i]):getext()
+							if ext == 'lua' then
+								parts:insert(i, name..'.rua')
+							end
+						end
+						searchPath = parts:concat';'
+					end
+					local filename, msg = package.searchpath(req, searchpath)
 					if not filename then
 						io.stderr:write("WARNING require couldn't find path "..tolua(req)..": "..tolua(msg)..'\n')
 					else
@@ -89,7 +101,7 @@ search = |x| do
 					end
 				end
 			end
-			search(v)
+			search(v, useLangFix)
 		end
 	end
 end
@@ -115,7 +127,7 @@ for _,f in ipairs(files) do
 			io.stderr:write('WARNING - failed to parse '..f..': '..msg..'\n')
 		else
 			local tree = parser.tree
-			search(tree)
+			search(tree, true)
 		end
 	end
 end
