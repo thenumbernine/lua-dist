@@ -195,16 +195,46 @@ local function copyBody(destDir)
 		local dep = leftDeps:remove(1)
 		if not allDeps[dep] then
 			allDeps[dep] = true
-			local depPath = projectsDir/dep
-			assert(depPath:exists(), "failed to find dependency base dir: "..depPath)
-			local distinfopath = depPath/'distinfo'
-			assert(distinfopath:exists(), "failed to find distinfo file: "..distinfopath)
-			local env = {}
-			local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
-			assert(env.files, "failed to find any files in distinfo of dep "..dep)
-			copyByDescTable(depPath, destDir, env.files)
+
+			local found
+			-- first try the dist/distinfos/*.distinfo files
+			do
+				local distinfopath = distProjectDir('distinfos/'..dep..'.distinfo')
+				if distinfopath:exists() then
+					found = true
+					local env = {}
+					local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
+					assert(env.files, "failed to find any files in distinfo of dep "..dep)
+					-- now find where the luarocks or builtin or whatever is installed
+					assert(depPath, "failed to find builtin distinfo path")
+					--copyByDescTable(depPath, destDir, env.files)
+					for from,to in pairs(env.files) do
+						local frombase = from:match'^(.*)%.lua$'
+						assert(not frombase:find'%.', "can't use this path since it has a dot in its name: "..tostring(frombase))
+						error'here'
+						-- TODO search in release/
+						local frompath = package.searchpath(frombase, package.path) or package.searchpath(frombase, package.cpath)
+						local fromdir, fromname = path(frompath):getdir()
+						copyFileToDir(fromdir, fromname, to)
+					end
 print(dep..' adding '..table.concat(env.deps or {}, ', '))
-			leftDeps:append(env.deps)
+					leftDeps:append(env.deps)
+				end
+			end
+
+			-- next try the projects/*/distinfo files
+			if not found then
+				local depPath = projectsDir/dep
+				assert(depPath:exists(), "failed to find dependency base dir: "..depPath)
+				local distinfopath = depPath/'distinfo'
+				assert(distinfopath:exists(), "failed to find distinfo file: "..distinfopath)
+				local env = {}
+				local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
+				assert(env.files, "failed to find any files in distinfo of dep "..dep)
+				copyByDescTable(depPath, destDir, env.files)
+print(dep..' adding '..table.concat(env.deps or {}, ', '))
+				leftDeps:append(env.deps)
+			end
 		end
 	end
 end

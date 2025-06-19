@@ -1,0 +1,11 @@
+-- luassl
+name = 'ssl'
+
+files = {
+	['ssl.lua'] = 'ssl.lua',
+	['ssl/https.lua'] = 'ssl/https.lua',
+
+	-- these are folders that contain core.so-ext
+	-- how should I organize this?
+	['bin/${os}/${arch}/ssl/core.${soext}'] = 'bin/${os}/${arch}/ssl.${soext}',
+},

@@ -1,0 +1,22 @@
+-- luasocket
+name = 'socket'
+
+-- should these get their own subfolders?
+-- does dist expect them to have their own subfolders?
+files = {
+	['socket.lua'] = 'socket.lua',
+	['ltn12.lua'] = 'ltn12.lua',
+	['mbox.lua'] = 'mbox.lua',
+	['mime.lua'] = 'mime.lua',
+	['socket/ftp.lua'] = 'socket/ftp.lua',
+	['socket/headers.lua'] = 'socket/headers.lua',
+	['socket/http.lua'] = 'socket/http.lua',
+	['socket/smtp.lua'] = 'socket/smtp.lua',
+	['socket/tp.lua'] = 'socket/tp.lua',
+	['socket/url.lua'] = 'socket/url.lua',
+
+	-- these are folders that contain core.so-ext
+	-- how should I organize this?
+	['bin/${os}/${arch}/mime/core.${soext}'] = 'bin/${os}/${arch}/mime/core.${soext}',
+	['bin/${os}/${arch}/socket/core.${soext}'] = 'bin/${os}/${arch}/socket/core.${soext}',
+}
