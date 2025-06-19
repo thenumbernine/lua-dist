@@ -232,7 +232,7 @@ local function makeWinScript(arch, osDir, binDirRel)
 			'setlocal',
 			'cd data',
 			[[set ROOT=%CD%]],
-			[[set PATH=%PATH%;%ROOT%\]]..binDirRel,
+			[[set PATH=%PATH%;%ROOT%\]]..tostring(binDirRel):gsub('/', '\\'),	-- gotta gsub manually to support packaging win distributables on non-win platforms
 			[[set LUA_PATH=%ROOT%\?.lua;%ROOT%\?\?.lua;.\?.lua;.\?\?.lua]],
 			[[set LUA_CPATH=%ROOT%\bin\Windows\]]..arch..[[\?.dll]],
 			startDir and 'cd "'..startDir..'"' or '',
@@ -253,7 +253,7 @@ local function makeWin(arch)
 	local osDir = distDir/distName
 	osDir:mkdir()
 
-	local binDirRel = path'bin/Windows'/arch
+	local binDirRel = path'bin'/'Windows'/arch
 	local runbatname = makeWinScript(arch, osDir, binDirRel)
 
 	-- TODO how to do this when we're not on Windows?
@@ -623,7 +623,7 @@ local function makeLinuxWin64()
 	osDir:mkdir()
 
 	-- this is where luajit is relative to the runtime cwd
-	local binDirRel = path'bin/Linux'/arch
+	local binDirRel = path'bin'/'Linux'/arch
 
 	makeLinuxScript(osDir, binDirRel)
 	makeWinScript(arch, osDir, binDirRel)
