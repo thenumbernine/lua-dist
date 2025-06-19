@@ -66,14 +66,14 @@ search = |x, useLangFix| do
 					local searchpath = package.path
 					if useLangFix then
 						-- taken from langfix/run.lua:
-						local parts = searchPath:split';'
+						local parts = searchpath:split';'
 						for i=#parts,1,-1 do
 							local name, ext = path(parts[i]):getext()
 							if ext == 'lua' then
 								parts:insert(i, name..'.rua')
 							end
 						end
-						searchPath = parts:concat';'
+						searchpath = parts:concat';'
 					end
 					local filename, msg = package.searchpath(req, searchpath)
 					if not filename then
