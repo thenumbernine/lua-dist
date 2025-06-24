@@ -99,7 +99,7 @@ Ideally these will fit with the `ffi/$binding.lua` generated from include files,
 - LibTIFF tags/4.7.0
 - LibOGG version
 - LibVorbis tags/1.3.7
-- cimgui+sdl2+opengl3 1.90.5dock ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)
+- cimgui+sdl2+opengl3 1.91.9dock ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)
 - OpenAL version ... 1.1?  I think I'm using some other compat library ...
 - LibClip - My [fork](https://github.com/thenumbernine/clip).  Does any one know of a good cross-platform clipboard library that handles text, images (including 8bpp indexed), audio, etc?
 
