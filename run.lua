@@ -198,26 +198,31 @@ local function copyBody(destDir)
 
 			local found
 			-- first try the dist/distinfos/*.distinfo files
+			-- TODO honestly thinking about it ... pushing the dist-builtin versions of these things means you're pushing untested ones
+			-- so you're assuming that whatever is in dist-builtin is matching whatever is on the local machine...
+			-- this is convenient for publishing cross-platform packages but it is risky if versions dont match...
 			do
 				local distinfopath = distProjectDir('distinfos/'..dep..'.distinfo')
 				if distinfopath:exists() then
+print(destDir..' adding dist-builtin '..dep)
 					found = true
 					local env = {}
 					local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
 					assert(env.files, "failed to find any files in distinfo of dep "..dep)
 					-- now find where the luarocks or builtin or whatever is installed
-					assert(depPath, "failed to find builtin distinfo path")
-					--copyByDescTable(depPath, destDir, env.files)
 					for from,to in pairs(env.files) do
 						local frombase = from:match'^(.*)%.lua$'
 						assert(not frombase:find'%.', "can't use this path since it has a dot in its name: "..tostring(frombase))
-						error'here'
 						-- TODO search in release/
 						local frompath = package.searchpath(frombase, package.path) or package.searchpath(frombase, package.cpath)
 						local fromdir, fromname = path(frompath):getdir()
-						copyFileToDir(fromdir, fromname, to)
+						local todir, toname = path(to):getdir()
+print('copyFileToDir', fromdir, fromname, destDir/todir)
+						assert.eq(fromname, toname)	-- because I guess copyFileToDir doesn't rename *shrug* should it?
+						copyFileToDir(fromdir, fromname, destDir/todir)
 					end
 print(dep..' adding '..table.concat(env.deps or {}, ', '))
+error'done'
 					leftDeps:append(env.deps)
 				end
 			end
