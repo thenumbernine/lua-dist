@@ -215,9 +215,14 @@ print(destDir..' adding dist-builtin '..dep)
 						assert(not frombase:find'%.', "can't use this path since it has a dot in its name: "..tostring(frombase))
 						-- TODO search in release/
 						local frompath = package.searchpath(frombase, package.path) or package.searchpath(frombase, package.cpath)
-						local fromdir, fromname = path(frompath):getdir()
+--DEBUG:print('frompath', frompath)
+						frompath = path(frompath)
+--DEBUG:print('path(frompath)', path(frompath))
+						local fromdir, fromname = frompath:getdir()
+--DEBUG:print('fromdir', fromdir)
+--DEBUG:print('fromname', fromname)
 						local todir, toname = path(to):getdir()
-print('copyFileToDir', fromdir, fromname, destDir/todir)
+--DEBUG:print('copyFileToDir', fromdir, fromname, destDir/todir)
 						assert.eq(fromname, toname)	-- because I guess copyFileToDir doesn't rename *shrug* should it?
 						copyFileToDir(fromdir, fromname, destDir/todir)
 					end
