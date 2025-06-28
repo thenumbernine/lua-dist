@@ -222,7 +222,6 @@ print('copyFileToDir', fromdir, fromname, destDir/todir)
 						copyFileToDir(fromdir, fromname, destDir/todir)
 					end
 print(dep..' adding '..table.concat(env.deps or {}, ', '))
-error'done'
 					leftDeps:append(env.deps)
 				end
 			end
