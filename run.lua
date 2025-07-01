@@ -91,6 +91,9 @@ luaDistVer = luaDistVer or 'luajit'
 print("luaDistVer", luaDistVer)
 assert.eq(luaDistVer, 'luajit')
 
+-- needed by the windows build ... why not build static?
+local luaLibVer = 'luajit-2.1-20250117.dll'
+
 
 local homeDir = path((assert(os.getenv'HOME' or os.getenv'USERPROFILE', "failed to find your home dir")))
 local projectsDir = homeDir/'Projects/lua'	-- where to find your distinfo files.  Sometimes I saved this in $LUA_PROJECTS_DIR
@@ -332,6 +335,7 @@ local function makeWin(arch)
 
 	-- copy luajit
 	copyFileToDir(distBinPath, luaDistVer..'.exe', binDir)
+	copyFileToDir(distBinPath, luaLibVer, binDir)
 
 	-- copy body
 	copyBody(dataDir)
@@ -699,7 +703,7 @@ local function makeLinuxWin64()
 	end
 	--]]
 
-	-- now copy the run_Windows dir to dataDir/bin/Windows
+	-- just copy everything in windows over - even dlls we dont use...?
 	copyDirToDir(distProjectDir/'bin/Windows', '.', dataDir/'bin/Windows')
 
 	-- now make the zip
