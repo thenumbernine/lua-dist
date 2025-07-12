@@ -267,25 +267,26 @@ local function getLuaArgs(plat)
 end
 
 local function makeWinScript(arch, osDir, binDirRel)
-	local runbatname = 'run-'..arch..'.bat'
-	(osDir/runbatname):write(
+	local runVBSName = 'run-Windows-'..arch..'.vbs'
+	(osDir/runVBSName):write(
 		table{
-			'@echo off',
-			'setlocal',
-			'cd data',
-			[[set ROOT=%CD%]],
-			[[set PATH=%PATH%;%ROOT%\]]..tostring(binDirRel):gsub('/', '\\'),	-- gotta gsub manually to support packaging win distributables on non-win platforms
-			[[set LUA_PATH=%ROOT%\?.lua;%ROOT%\?\?.lua;.\?.lua;.\?\?.lua]],
-			[[set LUA_CPATH=%ROOT%\bin\Windows\]]..arch..[[\?.dll]],
-			startDir and 'cd "'..startDir..'"' or '',
-			luaDistVer..'.exe'..' '
-				..(getLuaArgs'win' or '')
-				..' > "%ROOT%\\..\\out.txt" 2> "%ROOT%\\..\\err.txt"',
-			'cd ..',
-			'endlocal',
+[[set shell = CreateObject("WScript.Shell")]],
+[[shell.CurrentDirectory = ".\data"]],
+[[rootdir = CreateObject("Scripting.FileSystemObject").GetAbsolutePathName(".")]],
+[[set env = shell.Environment( "Process" )]],
+[[env("PATH")=env("PATH") & ";" & rootdir & "\]]
+	..tostring(binDirRel):gsub('/', '\\')	-- gotta gsub manually to support packaging win distributables on non-win platforms
+	..[["]],
+[[env("LUA_PATH")=rootdir & "\?.lua;" & rootdir & "\?\?.lua;.\?.lua;.\?\?.lua"]],
+[[env("LUA_CPATH")=rootdir & "\bin\Windows\x64\?.dll"]],
+(startDir and [[shell.CurrentDirectory = ".\]]..startDir..[["]] or ''),
+[[shell.Run "]]..luaDistVer..[[.exe ]]..(getLuaArgs'win' or '')
+	..[[ > """ & rootdir & "\..\out.txt"" 2> """ & rootdir & "\..\err.txt""]] -- want to pipe output?
+	..[[", 0, False]],
+[[WScript.Quit]],
 		}:concat'\r\n'..'\r\n'
 	)
-	return runbatname
+	return runVBSName
 end
 
 -- the windows-specific stuff:
@@ -296,34 +297,7 @@ local function makeWin(arch)
 	osDir:mkdir()
 
 	local binDirRel = path'bin'/'Windows'/arch
-	local runbatname = makeWinScript(arch, osDir, binDirRel)
-
-	-- TODO how to do this when we're not on Windows?
-	if ffi.os == 'Windows' then
-		-- [[ make the .lnk file since some computers give a warning when launching a .bat file
-		local runlnkname = 'run-'..arch..'.lnk'
-		--exec('shortcut /f:"'..(osDir/runlnkname)..'" /a:c /t:"%COMSPEC% /c setupenv.bat"')
-		-- https://stackoverflow.com/a/30029955
-		-- should I finally switch from .bat to .ps1?
-		-- don't use exec cuz it gsub's all /'s to \'s ... which it wouldn't need to do if i just always called fixpath everywhere ... TODO
-		-- TODO escaping ... i think it saves the lnk with *MY* COMSPEC, not the string "%COMSPEC%"
-		-- looks like putting a '+' in the string prevents the %'s from being used as env var delimiters ...
-		-- but still it wraps the TargetPath with "'s
-		--  one answer says put this after the string: -replace "`"|'"
-		-- but doesn't seem to help
-		-- it seems if the file is already there then powershell will modify it and append the targetpath instead of writing a new link so ...
-		-- also in the windows desktop it shows a link, but if i edit it then it edits cmd.exe .... so it's a hard-link?
-		local runlnkpath = osDir/runlnkname
-		runlnkpath:remove()
-		local cmd = table{
-			"$s=(New-Object -COM WScript.Shell).CreateShortcut('"..runlnkpath.."');",
-			"$s.TargetPath='%'+'COMSPEC'+'%';",
-			"$s.Arguments='/c "..runbatname.."';",
-			"$s.Save()",
-		}:concat()
-		exec('powershell "'..cmd..'"')
-		--]]
-	end
+	local runVBSName = makeWinScript(arch, osDir, binDirRel)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
