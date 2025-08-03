@@ -282,7 +282,7 @@ local function makeWinScript(arch, osDir, binDirRel)
 (startDir and [[shell.CurrentDirectory = ".\]]..startDir..[["]] or ''),
 [[shell.Run "]]..luaDistVer..[[.exe ]]..(getLuaArgs'win' or '')
 	..[[ > """ & rootdir & "\..\out.txt"" 2> """ & rootdir & "\..\err.txt""]] -- want to pipe output?
-	..[[", 0, False]],
+	..[[", 0, True]],
 [[WScript.Quit]],
 		}:concat'\r\n'..'\r\n'
 	)
