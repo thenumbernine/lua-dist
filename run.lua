@@ -336,7 +336,8 @@ local function makeWin(arch)
 	-- now make the zip
 	if not cmdline.dontZip then
 		distDir(distName..'.zip'):remove()
-		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'"')
+		--exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'"')
+		exec('cd dist && 7z.exe a -tzip "'..distName..'.zip" "'..distName..'"')
 	end
 end
 
