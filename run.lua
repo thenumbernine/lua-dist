@@ -273,12 +273,12 @@ local function makeWinScript(arch, osDir, binDirRel)
 [[set shell = CreateObject("WScript.Shell")]],
 [[shell.CurrentDirectory = ".\data"]],
 [[rootdir = CreateObject("Scripting.FileSystemObject").GetAbsolutePathName(".")]],
-[[set env = shell.Environment( "Process" )]],
-[[env("PATH")=env("PATH") & ";" & rootdir & "\]]
+[[set env = shell.Environment("Process")]],
+[[env("PATH") = env("PATH") & ";" & rootdir & "\]]
 	..tostring(binDirRel):gsub('/', '\\')	-- gotta gsub manually to support packaging win distributables on non-win platforms
 	..[["]],
-[[env("LUA_PATH")=rootdir & "\?.lua;" & rootdir & "\?\?.lua;.\?.lua;.\?\?.lua"]],
-[[env("LUA_CPATH")=rootdir & "\bin\Windows\x64\?.dll"]],
+[[env("LUA_PATH") = rootdir & "\?.lua;" & rootdir & "\?\?.lua;.\?.lua;.\?\?.lua"]],
+[[env("LUA_CPATH") = rootdir & "\bin\Windows\x64\?.dll"]],
 (startDir and [[shell.CurrentDirectory = ".\]]..startDir..[["]] or ''),
 [[shell.Run "]]..luaDistVer..[[.exe ]]..(getLuaArgs'win' or '')
 	..[[ > """ & rootdir & "\..\out.txt"" 2> """ & rootdir & "\..\err.txt""]] -- want to pipe output?
