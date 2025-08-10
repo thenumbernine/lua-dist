@@ -241,7 +241,11 @@ print(dep..' adding '..table.concat(env.deps or {}, ', '))
 				local distinfopath = depPath/'distinfo'
 				assert(distinfopath:exists(), "failed to find distinfo file: "..distinfopath)
 				local env = {}
-				local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
+				local distinfodata = select(2, assert(xpcall(function()
+					return assert(load(assert(distinfopath:read()), nil, 't', env))()
+				end, function(err)
+					return 'for file: '..distinfopath..'\n'..err..'\n'..debug.traceback()
+				end)))
 				assert(env.files, "failed to find any files in distinfo of dep "..dep)
 				copyByDescTable(depPath, destDir, env.files)
 print(dep..' adding '..table.concat(env.deps or {}, ', '))
