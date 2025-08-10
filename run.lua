@@ -209,7 +209,7 @@ local function copyBody(destDir)
 				if distinfopath:exists() then
 print(destDir..' adding dist-builtin '..dep)
 					found = true
-					local env = {}
+					local env = setmetatable({}, {__index=_G})
 					local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
 					assert(env.files, "failed to find any files in distinfo of dep "..dep)
 					-- now find where the luarocks or builtin or whatever is installed
@@ -240,7 +240,7 @@ print(dep..' adding '..table.concat(env.deps or {}, ', '))
 				assert(depPath:exists(), "failed to find dependency base dir: "..depPath)
 				local distinfopath = depPath/'distinfo'
 				assert(distinfopath:exists(), "failed to find distinfo file: "..distinfopath)
-				local env = {}
+				local env = setmetatable({}, {__index=_G})
 				local distinfodata = select(2, assert(xpcall(function()
 					return assert(load(assert(distinfopath:read()), nil, 't', env))()
 				end, function(err)
