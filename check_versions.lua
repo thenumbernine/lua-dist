@@ -90,7 +90,7 @@ print('sdl library version:', SDLApp.sdlGetVersion())
 --]]
 
 -- [[ cimgui+sdl2+opengl3
-local imgui = require 'ffi.req' 'cimgui'
+local imgui = require 'imgui.lib'
 print('cimgui header version:', imgui.version)
 print('cimgui library version:', ffi.string(imgui.igGetVersion()))
 --]]
