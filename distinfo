@@ -1,7 +1,7 @@
 name = "dist"
 files = {
 	["LICENSE"] = "dist/LICENSE",
-	["dist.rockspec"] = "dist/dist.rockspec",
+	["dist-dev-1.rockspec"] = "dist/dist-dev-1.rockspec",
 	["README.md"] = "dist/README.md",
 	["build-distinfo.rua"] = "dist/build-distinfo.rua",
 	["check_versions.lua"] = "dist/check_versions.lua",
