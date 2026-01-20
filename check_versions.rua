@@ -1,0 +1,127 @@
+#!/usr/bin/env rua
+local binext = ffi.os == 'Windows' and '.exe' or ''
+local luajit = 'luajit'..binext
+
+-- [[ use a local copy instead of whatever system location is in ffi.load
+-- specify it manually here since a few of the windows dll names dont match up
+if cmdline['local'] then
+	local archdir = 'release/bin/'..ffi.os..'/'..ffi.arch
+	local ffiload = require 'ffi.load'
+	ffiload.png = {Windows=archdir..'/libpng6.dll'}
+	ffiload.tiff = {Windows=archdir..'/tiff.dll'}
+	ffiload.SDL2 = {Windows=archdir..'/SDL2.dll'}
+	ffiload.cimgui_sdl = {Windows=archdir..'/cimgui_sdl.dll'}
+	ffiload.vorbis = {Windows=archdir..'/vorbisfile.dll'}
+
+	luajit = archdir..'/'..luajit
+end
+--]]
+
+local matchif = |s, pat| s:match(pat) or s
+
+local showerrs = |f| xpcall(f, |err| io.stderr:write(err,'\n',debug.traceback()))
+
+-- [[ luajit
+showerrs(||do
+	local luajitVer = io.readproc(luajit..' -v'):trim()
+	print('luajit version:', matchif(luajitVer, '^LuaJIT (.*) %-%- Copyright'))
+end)
+--]]
+
+-- [[ luasocket
+showerrs(||do
+	local socket = op.land(pcall(require, 'socket'))
+	print('luasocket version:', not socket and 'not found' or matchif(socket._VERSION, '^LuaSocket (.*)'))
+	local ssl = op.land(pcall(require, 'ssl'))
+	print('luasec version:', not ssl and 'not found' or ssl._VERSION)
+end)
+--]]
+
+-- [[ zlib ... used by png ... linked within png
+showerrs(||do
+	local zlib = require 'ffi.req' 'zlib'
+	print('zlib header version:', zlib.ZLIB_VERSION)
+	print('zlib library version:', ffi.string(zlib.zlibVersion()))
+end)
+--]]
+
+-- [[ png
+showerrs(||do
+	local png = require 'ffi.req' 'png'
+	print('png header version:', png.PNG_LIBPNG_VER_STRING)
+	print('png library version:', ffi.string(png.png_libpng_ver()))
+end)
+--]]
+
+-- [[ turbojpeg's jpeglib
+showerrs(||do
+	local jpeg = require 'ffi.req' 'jpeg'	-- TODO rename to jpegturbo ?
+	print('turbojpeg header version:', jpeg.LIBJPEG_TURBO_VERSION)	-- also LIBJPEG_TURBO_VERSION_NUMBER
+	print('turbojpeg library version ... missing a test!')
+	print('turbojpeg-jpeglib header version:', jpeg.JPEG_LIB_VERSION)		-- is this the libjpeg compatability version for libjpegturbo?  Maybe I should only care about this version number?
+	-- there's no good runtime check, so here is our own ... maybe I'll move this to ffi/jpeg.lua
+	-- https://stackoverflow.com/a/19116612
+	jpeg.jpeg_CreateDecompress(
+		ffi.new('struct jpeg_decompress_struct', {
+			err = ffi.new('struct jpeg_error_mgr', {
+				error_exit = ffi.cast('void(*)(j_common_ptr)', |cinfo| do
+					print('turbojpeg-jpeglib library version:', cinfo.err.msg_parm.i[0])
+				end),
+			}),
+		}), 
+		-1, 	-- version -1 means it will error
+		ffi.sizeof('struct jpeg_decompress_struct')
+	)
+end)
+--]]
+
+-- [[ tiff ... links jpeg, png, and zlib
+showerrs(||do
+	local tiff = require 'ffi.req' 'tiff'
+	local tolua = require 'ext.tolua'
+	print('tiff header version:', matchif(tiff.TIFFLIB_VERSION_STR, '^LIBTIFF, Version ([^\n]*)\nCopyright'))
+	print('tiff library version:', matchif(ffi.string(tiff.TIFFGetVersion()), '^LIBTIFF, Version ([^\n]*)\nCopyright'))
+end)
+--]]
+
+-- [[ sdl
+showerrs(||do
+	local sdl, SDLApp = require 'sdl.setup'()
+	print('sdl header version:',
+		sdl.SDL_MAJOR_VERSION
+		..'.'..sdl.SDL_MINOR_VERSION
+		..'.'..(op.safeindex(sdl, 'SDL_PATCHLEVEL') or op.safeindex(sdl, 'SDL_MICRO_VERSION'))
+		..' / '..(op.safeindex(sdl, 'SDL_COMPILEDVERSION') or op.safeindex(sdl, 'SDL_VERSION')))
+	print('sdl library version:', SDLApp.sdlGetVersion())
+end)
+--]]
+
+-- [[ cimgui+sdl2+opengl3
+showerrs(||do
+	local imgui = require 'imgui.lib'
+	print('cimgui header version:', imgui.version)
+	print('cimgui library version:', ffi.string(imgui.igGetVersion()))
+end)
+--]]
+
+-- [[ vorbis ...
+showerrs(||do
+	-- TODO ffi/vorbis/vorbisfile.lua has the ffi.load(vorbisfile) in it, and the prototype for vorbis_version_string
+	-- but vorbis.so has the definition of vorbis_version_string in it
+	-- but ffi/vorbis/codec.lua doesn't have a ffi.load(vorbis) in it ...
+	require 'ffi.req' 'vorbis.codec'
+	local vorbis = require 'ffi.load' 'vorbis'
+	print('vorbis header version ... missing a test!')
+	print('vorbis library version:', ffi.string(vorbis.vorbis_version_string()))
+end)
+--]]
+
+-- TODO OGG ... I don't see a version query ...
+print('libogg header version ... missing a test!')
+print('libogg library version ... missing a test!')
+-- TODO OpenAL ... just has some VERSION macro defines, no query
+print('libopenal header version ... missing a test!')
+print('libopenal library version ... missing a test!')
+-- TODO libclip
+print('libclip header version ... missing a test!')
+print('libclip library version ... missing a test!')
