@@ -39,7 +39,7 @@ end)
 
 -- [[ zlib ... used by png ... linked within png
 showerrs(||do
-	local zlib = require 'ffi.req' 'zlib'
+	local zlib = require 'image.ffi.zlib'
 	print('zlib header version:', zlib.ZLIB_VERSION)
 	print('zlib library version:', ffi.string(zlib.zlibVersion()))
 end)
@@ -47,7 +47,7 @@ end)
 
 -- [[ png
 showerrs(||do
-	local png = require 'ffi.req' 'png'
+	local png = require 'image.ffi.png'
 	print('png header version:', png.PNG_LIBPNG_VER_STRING)
 	print('png library version:', ffi.string(png.png_libpng_ver()))
 end)
@@ -55,7 +55,7 @@ end)
 
 -- [[ turbojpeg's jpeglib
 showerrs(||do
-	local jpeg = require 'ffi.req' 'jpeg'	-- TODO rename to jpegturbo ?
+	local jpeg = require 'image.ffi.jpeg'	-- TODO rename to jpegturbo ?
 	print('turbojpeg header version:', jpeg.LIBJPEG_TURBO_VERSION)	-- also LIBJPEG_TURBO_VERSION_NUMBER
 	print('turbojpeg library version ... missing a test!')
 	print('turbojpeg-jpeglib header version:', jpeg.JPEG_LIB_VERSION)		-- is this the libjpeg compatability version for libjpegturbo?  Maybe I should only care about this version number?
@@ -77,7 +77,7 @@ end)
 
 -- [[ tiff ... links jpeg, png, and zlib
 showerrs(||do
-	local tiff = require 'ffi.req' 'tiff'
+	local tiff = require 'image.ffi.tiff'
 	local tolua = require 'ext.tolua'
 	print('tiff header version:', matchif(tiff.TIFFLIB_VERSION_STR, '^LIBTIFF, Version ([^\n]*)\nCopyright'))
 	print('tiff library version:', matchif(ffi.string(tiff.TIFFGetVersion()), '^LIBTIFF, Version ([^\n]*)\nCopyright'))
@@ -98,7 +98,7 @@ end)
 
 -- [[ cimgui+sdl2+opengl3
 showerrs(||do
-	local imgui = require 'imgui.lib'
+	local imgui = require 'imgui.ffi.imgui'
 	print('cimgui header version:', imgui.version)
 	print('cimgui library version:', ffi.string(imgui.igGetVersion()))
 end)
@@ -109,7 +109,7 @@ showerrs(||do
 	-- TODO ffi/vorbis/vorbisfile.lua has the ffi.load(vorbisfile) in it, and the prototype for vorbis_version_string
 	-- but vorbis.so has the definition of vorbis_version_string in it
 	-- but ffi/vorbis/codec.lua doesn't have a ffi.load(vorbis) in it ...
-	require 'ffi.req' 'vorbis.codec'
+	require 'audio.ffi.vorbis.codec'
 	local vorbis = require 'ffi.load' 'vorbis'
 	print('vorbis header version ... missing a test!')
 	print('vorbis library version:', ffi.string(vorbis.vorbis_version_string()))
