@@ -160,7 +160,8 @@ for _,f in ipairs(files) do
 	if f:match'%.lua$' then
 		-- parse it, look for 'require' function calls
 		local data = assert(path(f):read())
-		local parser = LuaParser()
+		-- what to do for the parser version ...
+		local parser = LuaParser(nil, nil, '5.4', true)
 		local success, msg = parser:setData(data, source)
 		if not success then
 			io.stderr:write('WARNING - failed to parse '..f..': '..msg..'\n')
