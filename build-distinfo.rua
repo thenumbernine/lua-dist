@@ -1,10 +1,12 @@
 #!/usr/bin/env rua
 --[[
 1) look at git repo + look at pwd for name
-2) build `files = { }` mapping all files in repo to dirname + filename
+2) build `files = { }` as a list of all files in repo
+2.5) put any file within ffi/$os/*, ffi/$arch/* or ffi/$os/$arch/* in its own condition block.  same for bin/*
 3) for each lua file, search for all "require" instances
 4) add a "deps" section for dependencies
-5) hmm those two were automatic, but the rest might be manual ... specifying any dependent binaries (or maybe they should be packaged / repo-committed per-OS-arch)
+5) hmm those two were automatic, but the rest might be manual ...
+	... specifying any dependent binaries (or maybe they should be packaged / repo-committed per-OS-arch)
 --]]
 local LuaParser = require 'parser.lua.parser'
 local LuaFixedParser = require 'langfix.parser'
@@ -21,10 +23,54 @@ out:insert('name = '..tolua(dirname))
 
 local files = io.readproc'git ls-files':trim():split'\n'
 out:insert'files = {'
+local condfiles = table()
 for _,f in ipairs(files) do
-	out:insert('\t['..tolua(f)..'] = '..tolua(dirname..'/'..f)..',')
+	local fparts = f:split'/'
+
+	-- ffi/os/filename.lua
+	-- ffi/arch/filename.lua
+	-- ffi/os/arch/filename.lua
+	-- or same with bin/
+	-- put in a conditional block
+	-- otherwise put in main files list
+	local found
+	if (fparts[1] == 'ffi' or fparts[1] == 'bin') then
+		if #fparts == 3 then
+			-- this only handles ffi/os/*, not ffi/arch/* ...
+			-- to handle both, I'd have to detect whether the folder name was an OS or an ARCH
+			-- but because so far I never use ffi/arch/*,
+			-- I was just avoid it for now
+			-- hmm nope bad idea, cuz it mistakens any ffi/ or bin/ subdir for an os-specific, i.e. ffi/vorbis/codec.lua ...
+			-- then again maybe I should rename those too...
+			local cond = 'ffi.os == '..tolua(fparts[2])
+			condfiles[cond] ??= table()
+			condfiles[cond]:insert(f)
+			found = true
+		elseif #fparts == 4 then
+			local cond = 'ffi.os == '..tolua(fparts[2])..' and ffi.arch == '..tolua(fparts[3])
+			condfiles[cond] ??= table()
+			condfiles[cond]:insert(f)
+			found = true
+		elseif #fparts > 4 then
+			io.stderr:write('WARNING - got an unexpected per-os-arch file ', f, '\n')
+		end
+	end
+
+	if not found then
+		out:insert('\t'..tolua(f)..',')
+	end
 end
 out:insert'}'
+
+for _,cond in ipairs(condfiles:keys():sort()) do
+	out:insert('if '..cond..' then')
+	out:insert'\ttable.append(files, {'
+	for _,f in ipairs(condfiles[cond]) do
+		out:insert('\t\t'..tolua(f)..',')
+	end
+	out:insert('\t})')
+	out:insert'end'
+end
 
 local builtinReqs = {
 	ffi = true,
@@ -77,7 +123,8 @@ search = |x, useLangFix| do
 					end
 					local filename, msg = package.searchpath(req, searchpath)
 					if not filename then
-						io.stderr:write("WARNING require couldn't find path "..tolua(req)..": "..tolua(msg)..'\n')
+						io.stderr:write("WARNING require couldn't find path "..tolua(req)..": ", '\n',
+							'\t', msg:trim(), '\n')
 					else
 						local dir = path(filename):abs()
 --DEBUG:print('searching filename for distinfo', filename, dir)

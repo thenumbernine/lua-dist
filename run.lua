@@ -169,15 +169,15 @@ end
 --[[
 baseDir = where to copy from
 destDir = where to copy to
-filesTable = k/v from/to
+filesTable = list-of-files relative to baseDir
 --]]
 local function copyByDescTable(baseDir, destDir, filesTable)
 	baseDir = path(baseDir)
 	destDir = path(destDir)
 	assert.type(filesTable, 'table')
-	for from, to in pairs(filesTable) do
+	for _,from in ipairs(filesTable) do
+		local topath = baseDir/from
 		local frompath = path(from)
-		local topath = path(to)
 		assert((baseDir/frompath):exists(), "failed to find file "..frompath)
 
 		-- fixme maybe?
@@ -213,7 +213,8 @@ print(destDir..' adding dist-builtin '..dep)
 					local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
 					assert(env.files, "failed to find any files in distinfo of dep "..dep)
 					-- now find where the luarocks or builtin or whatever is installed
-					for from,to in pairs(env.files) do
+					for _,from in ipairs(env.files) do
+						local to = destDir/from
 						local frombase = from:match'^(.*)%.lua$'
 						assert(not frombase:find'%.', "can't use this path since it has a dot in its name: "..tostring(frombase))
 						-- TODO search in release/

@@ -2,6 +2,8 @@
 
 # Distribution for Lua Projects
 
+# How to build a distributable for Lua Projects
+
 Chdir to your Lua project repository,
 
 make sure there is a `distinfo` file present,
@@ -33,21 +35,13 @@ The `distinfo` file should contain the following variables:
 
 `startDir` = what path within the directory structure to start at.
 
-`files` = key/value map where the keys is the base directory and the values are what files to copy
-- all directory structure other than the base is preserved in the copy
-- copies from `base/file` to `dist/data/directory/file`
+`files` = list of what files to copy.  copies from `dirname/file` to `dist/data/dirname/file`
 
 `deps` = key/value where the resulting `key/value/` path is searched for another `distinfo` file to determine which files to copy.
 
-`luajitLibs` = Table of luajit libs to use, with platform-specific overrides similar to luaArgs.
-This is being phased out in favor of the packaged distributables, to ensure version consistency among all OS's.
-Some day I should put those packages' submodules in here and allow building them per-environment.
-
-TODO someday, move these out of `dist/release` and into their specific packages.  Maybe put the stragglers/wrappers in either `dist/` or `include/`, and put the 3rd party equivalent `include/include-list.lua` contents in with it.
-
 ### application configuration variables:
 
-`name` = name of project
+`name` = name of project / folder to name the repo / name of folder in the distributable's base Lua folder.
 
 `icon` = (optional) filename to icon.
 - For AppImage, it must be present, and must be a `.png`, and all the docs mention "i.e. 256x256" but don't specify any hard constraints of the size.
@@ -65,13 +59,37 @@ TODO someday, move these out of `dist/release` and into their specific packages.
 
 `AppImageCategories` = `Categories` of AppImage `.desktop` file.
 
+### binding generation
+
+- `generateBindings` = function that returns a list of binding-generators to be used with my lua-include project for generating bindings, typically placed in `<library-name>/ffi/<binding-name>.lua`.
+- lua-include generation information. ex: lib-clip:
+``` Lua
+generateBindings = function()
+	return {
+		{
+			inc = '<cclip.h>',
+			--out = 'cclip.lua',
+			-- and this would before go into 'ffi/cclip.lua'
+			-- ... maybe it should go somewhere per-3rd-party like ...
+			out = 'clip/ffi.lua',
+			final = function(code)
+				code = code .. "\nreturn require 'ffi.load' 'clip'\n"	-- load libclip.so / libclip.dylib / clip.dll
+				return code
+			end,
+		},
+	}
+end
+```
+
 # Other Scripts In This Repo:
 
-- `dist.lua`: This is a shorthand wrapper so that ideally `luajit -ldist` does the same as `/path/to/dist/run.lua` would.
+- `dist.lua`: This is a shorthand wrapper so that ideally `luajit -ldist` does the same as `/path/to/dist/run.lua` would.  Tempted to get rid of this.
 
-- `check_versions.lua`: This is a helper script for printing out the include-binding version and the library version of a few installed libraries.
+- `check_versions.rua`: This is a helper script for printing out the include-binding version and the library version of a few installed libraries.
 
-- `update-release.lua`: This copies the binaries from your OS folders to the `release/bin/$os/$arch/` folder.  This is a design aspect I'm rethinking.
+- `update-release.lua`: This copies the binaries from your OS folders to the `release/bin/$os/$arch/` folder.
+	This is a design aspect I'm rethinking.
+	Maybe I'll change this script to run in a relative project's folder, check its distinfo for some thing that tells it where to copy OS libs from, and do the copying.
 
 - `build-distinfo.rua`: Run this from a repo's cwd to have it produce a `distinfo` library file.  The file will contain:
 - - the library/cwd name
@@ -80,11 +98,12 @@ TODO someday, move these out of `dist/release` and into their specific packages.
 
 # Current Directory Setup
 
-I tried to avoid it for years but it looks like I am copying the design pattern of [malkia's ufo](https://github.com/malkia/ufo).
+I am copying heavily from the design pattern of [malkia's ufo](https://github.com/malkia/ufo).
 
 - `release/` = holds stuff to be copied to each release.
 - `release/bin/$OS/$arch/` = holds any C-symbol libraries loaded by luajit's `ffi.load()`.  Its path is configurable in the `ffi/load.lua` file.
 - `release/bin/$OS/$arch/` = holds Lua libraries loaded by lua's `load()`.  Its path is configurable with the `LUA_CPATH` env var / `package.cpath` lua global.  Maybe I should separate this from the C-symbol libraries?
+
 Looks like I am putting all OS-specific directory stuff into `bin/$OS/$arch` for now, maybe I'll break this up later.
 
 # Libraries to be packaged with?
@@ -93,36 +112,11 @@ Ideally these will fit with the `ffi/$binding.lua` generated from include files,
 - luajit2-OpenResty git tags/v2.1-20250117 aka version 2.1.1737090214 ... built with `LUAJIT_ENABLE_LUA52COMPAT` enabled
 - luasocket version ... 47e5bd71a95a0a36ef5b02e5bf3af3fcab7a4409 ... since checking out v3.1.0 still has the version string set as "3.0.0"
 - luasec version tags/v1.3.2
-- SDL2 version tags/release-2.32.4
-- LibPNG version tags/1.6.47
-- zlib version tags/1.3.1
-- LibTIFF tags/4.7.0
-- LibOGG version
-- LibVorbis tags/1.3.7
-- cimgui+sdl2+opengl3 1.91.9dock ... TODO match with [lua-imgui](https://github.com/thenumbernine/lua-imgui)
-- OpenAL version ... 1.1?  I think I'm using some other compat library ...
-- LibClip - My [fork](https://github.com/thenumbernine/clip).  Does any one know of a good cross-platform clipboard library that handles text, images (including 8bpp indexed), audio, etc?
 
 
 # TODO
 
-Really this is great and all, but, it's packaging too much.
-
-How to tell it which supporting DLLs go with which other DLLS?
-
-I should from the start in lua-include, in lua-ffi-bindings, and here, be collecting the following per-3rd-party-library:
-- how to install?  git address, tag #, apt, brew, etc package name.
-- how to generate bindings?
-- which libraries are dependent
-
-That means in lua-ffi-bindings, change it from one flat directory to instead have multiple named ones ... heck , maybe lua-ffi-bindings shouldn't exist for 3rd party bindings, but only for ISO-C / POSIX bindings?
-
-And then *somewhere*, maybe in lua-ffi-bindings, maybe in lua-include, maybe just the root folder, *somewhere* each library should have some kind of `distinfo` or whatever in it that says those things above (how to install deps, how to gen bindings, etc)
-
-And then lua-dist, here, shouldn't hold its own bindings (each 3rd party lib's own bindings-folder should hold them).
-lua-dist here should just be wrangling them - and only the needed 3rd-party-binding-folders - and only the associated-per-os-libs that should be stored in those folders - and from that making the per-os-distributable file.
-
-So each 3rd-party-folder should have in it:
+Maybe something like:
 - install info.  ex: lib-clip:
 ``` Lua
 {
@@ -132,40 +126,6 @@ So each 3rd-party-folder should have in it:
 	-- and then maybe some info on where to find the built binary, and where to package it per-OS
 },
 ```
-
-- lua-include generation information. ex: lib-clip:
-``` Lua
-{
-	inc = '<cclip.h>',
-	--out = 'cclip.lua',
-	-- and this would before go into 'ffi/cclip.lua'
-	-- ... maybe it should go somewhere per-3rd-party like ...
-	out = 'clip/ffi.lua',
-	final = function(code)
-		code = code .. "\nreturn require 'ffi.load' 'clip'\n"	-- load libclip.so / libclip.dylib / clip.dll
-		return code
-	end,
-},
-```
-- lua-api-interface.  i.e. contents of `https://github.com/thenumbernine/lua-clip`
-So really I'm proposing to merge the per-3rd-party stuff into their own individual folders.
-Final result would look like:
-- clip/
-	- `clip.lua` (or if you don't have `?/?.lua` in your path, this goes in root)
-	- `install/`-- or maybe this is just a single file
-		- that "install info" above
-	- `make-ffi/` or include/ or binding/ or generate-bindings/ or something ...
-		- that "lua-include generation information" above ...
-		- ... maybe this can be a single file too ... maybe merge it with the 'install' file ... maybe merge it with the 'distinfo' file ... maybe merge it with '.rockspec' file ...
-	- `ffi.lua` -- this would be what was stored in lua-ffi-bindings' `ffi/clip.lua`
-	- `bin`	-- store binary distributables here.  seems to be polluting repos. but in the name of easily producing cross-platform-distributables...
-		- `$os/`
-			- `$arch/`
-				- `[lib]clip.[so|dylib|dll]`
-
-Then, in `clip.lua`, instead of going to ffi/clip.lua and trusting that another repo is there there, we would go to clip/ffi.lua.
-
-Then for installation, we just copy these folders as they are.
 
 But what about search paths?  Especially `$PATH` and especially `$LUA_CPATH` ...
 
@@ -179,28 +139,4 @@ Or maybe just take any repo as-is, like the `clip` C++/cmake repo, and just give
 - where the lua-path directory is (distlua/share by default?)
 - where the lua-cpath direcory is (distlua/lib by default?)
 
-Maybe I should make these subdirs for my projects ...
-And then for 3rd party ones, like SDL GLES etc, put those all in subfolders of `lua-include`
-And then when running, amend all the lua paths together ...  or just distribute them first, aka "compile", aka why am I using lua and not C++?
-
-options for new 'distinfo' 'files' format for lua-libraries:
-```
-files = {
-	--[[
-	--['*.lua'] = 'ext/*.lua',	-- dest pattern match ?
-	['*.lua'] = 'ext/',	-- or just file-to-dir syntax, i.e. equiv of 'mv' command?
-	['LICENSE'] = 'ext/',
-	['README.md'] = 'ext/',
-	--]]
-	-- [[ or if you don't mind the rockspec:
-	-- and then check each against git and warn/ignore those not in git
-	['*'] = 'ext/',
-	-- so
-	-- 1) key=number means source and dest are the value are the same
-	-- 2) key=string means key = source and value = dest
-	-- 3) dest = folder means same behaviour as shell cp / mv
-	-- idk should I deal with **'s or patterns or anything else?
-	-- maybe even a #4 implicit ['*'] = cwd's filename if no 'files' exists?
-	--]]
-}
-```
+- TODO for external packages that are used, such as dkjson, sha2, luasocket, lua-ssl ...
