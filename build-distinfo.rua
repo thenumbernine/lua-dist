@@ -36,6 +36,9 @@ for _,f in ipairs(files) do
 	local found
 	if (fparts[1] == 'ffi' or fparts[1] == 'bin') then
 		if #fparts == 3 then
+			if fparts[1] == 'bin' then
+				io.stderr:write'WARNING - bin/ should always be bin/os/arch, otherwise dlls could be scattered into multiple paths\n'
+			end
 			-- this only handles ffi/os/*, not ffi/arch/* ...
 			-- to handle both, I'd have to detect whether the folder name was an OS or an ARCH
 			-- but because so far I never use ffi/arch/*,

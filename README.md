@@ -142,5 +142,3 @@ Or maybe just take any repo as-is, like the `clip` C++/cmake repo, and just give
 - where the lua-cpath direcory is (distlua/lib by default?)
 
 - TODO for external packages that are used, such as dkjson, sha2, luasocket, lua-ssl ...
-
-- but the bin/ files need to be all in one dir , i.e. the `LUA_CPATH` dir ... so they need their own global var, how about `binfiles`?
