@@ -33,36 +33,38 @@ The `distinfo` file can be automatically created from a github repo by running `
 
 The `distinfo` file should contain the following variables:
 
-`startDir` = what path within the directory structure to start at.
+- `startDir` = what path within the directory structure to start at.
 
-`files` = list of what files to copy.  copies from `dirname/file` to `dist/data/dirname/file`
+- `files` = list of what files to copy into distributables.  copies from `dirname/file` to `dist/data/dirname/file`
+	- Lua files will be copied as is.  In fact, so will everything. Except...
+	- Libraries won't prepend the project dir name, but will instead all be pooled into one single `bin/$os/$arch` folder for use with `LUA_CPATH`, `PATH`, `LD_LIBRARY_PATH`, etc.
 
-`deps` = key/value where the resulting `key/value/` path is searched for another `distinfo` file to determine which files to copy.
+- `deps` = key/value where the resulting `key/value/` path is searched for another `distinfo` file to determine which files to copy.
 
 ### application configuration variables:
 
-`name` = name of project / folder to name the repo / name of folder in the distributable's base Lua folder.
+- `name` = name of project / folder to name the repo / name of folder in the distributable's base Lua folder.
 
-`icon` = (optional) filename to icon.
-- For AppImage, it must be present, and must be a `.png`, and all the docs mention "i.e. 256x256" but don't specify any hard constraints of the size.
-- For OSX, icons must be in `.icns` format, and to generate it `makeicns` must be installed.
+- `icon` = (optional) filename to icon.
+	- For AppImage, it must be present, and must be a `.png`, and all the docs mention "i.e. 256x256" but don't specify any hard constraints of the size.
+	- For OSX, icons must be in `.icns` format, and to generate it `makeicns` must be installed.
 
-`iconOSX` = (optional) filename to an `.icns` icon used with OSX `.app` files.  If you set `icon` but not `iconOSX` then lua-dist will try to generate the `.icns` file using `makeicns`.
+- `iconOSX` = (optional) filename to an `.icns` icon used with OSX `.app` files.  If you set `icon` but not `iconOSX` then lua-dist will try to generate the `.icns` file using `makeicns`.
 
-`luaArgs` = lua args, or
-- table of platform-specific lua args, with the first entry being the default,
-- `win` being the windows-specific args
-- `osx` being the OSX-specific args
-- `linux` being the windows-specific args
+- `luaArgs` = lua args, or
+	- table of platform-specific lua args, with the first entry being the default,
+	- `win` being the windows-specific args
+	- `osx` being the OSX-specific args
+	- `linux` being the windows-specific args
 
 ### AppImage configuration has the following variables:
 
-`AppImageCategories` = `Categories` of AppImage `.desktop` file.
+- `AppImageCategories` = `Categories` of AppImage `.desktop` file.
 
 ### binding generation
 
 - `generateBindings` = function that returns a list of binding-generators to be used with my lua-include project for generating bindings, typically placed in `<library-name>/ffi/<binding-name>.lua`.
-- lua-include generation information. ex: lib-clip:
+	- lua-include generation information. ex: lib-clip:
 ``` Lua
 generateBindings = function()
 	return {
@@ -140,3 +142,5 @@ Or maybe just take any repo as-is, like the `clip` C++/cmake repo, and just give
 - where the lua-cpath direcory is (distlua/lib by default?)
 
 - TODO for external packages that are used, such as dkjson, sha2, luasocket, lua-ssl ...
+
+- but the bin/ files need to be all in one dir , i.e. the `LUA_CPATH` dir ... so they need their own global var, how about `binfiles`?
