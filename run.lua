@@ -715,7 +715,46 @@ local function makeLinuxWin64()
 	end
 end
 
+
+--[[
+what to do here ...
+1) copy the SDL-LuaJIT apk source into a temp folder in dist/ , like dist/android-apk/
+2) modify the SDL-LuaJIT apk accordingly
+	- move SDLLuaJIT/app/src/main/java/io/github/thenumbernine/SDLLuaJIT/SDLActivity.java
+		to dist/android-apk/app/src/main/java/${packagename replace .'s with /'s}/SDLActivity.java
+	- change app/build.gradle
+		- android.namespace from "io.github.thenumbernine.SDLLuaJIT" to "${packagename}"
+		- android.defaultConfig.applicationId from same to same
+		- android.defaultConfig's base.archivesName.set("SDLLuaJIT-$versionName") to whatever ${apkfilename}
+	- change app/src/main/AndroidManifest.xml
+	- rename AndroidManifest.xml
+		- manifest.application.activity.android:name from "io.github.thenumbernine.SDLLuaJIT.SDLActivity" to "${packagename}.SDLActivity"
+
+TODO TODO TODO I should save the sdl3 and luajit android binaries in its jniLibs folder so I don't have to keep rebuilding them again and again ...
+
+	- copy lua into our typical luajit runtime directory structure and put it in dist/android-apk/assets/
+		- these will go to /data/data/packagename/files/
+	- libs should all go in one place: dist/android-apk/assets/lib/
+		- these will go to /data/data/packagename/files/lib/
+3) run android SDK build on it all ... TODO see what cmds android studio executes.
+4) copy the results from dist/android-apk/app/build/outputs/apk/release/${apkfilename}-${apkversion}-${android-abi}-${debug-vs-release}.apk
+--]]
 local function makeAndroid()
+	local apkFileName = distinfo.apkFileName or (function()
+		io.stderr:write("WARNING - didn't find apkFileName, using name instead\n")
+		return distinfo.name
+	end)()
+	local apkPkgName = distinfo.apkPkgName or (function()
+		io.stderr:write("WARNING - didn't find apkPkgName, using name instead\n")
+		return 'io.github.thenumbernine.'..distinfo.name
+	end)()
+error'TODO'
+	local srcSdlLuaJITDir =
+		os.getenv'SDL_LUAJIT_ANDROID_APP_PATH' and path(os.getenv'SDL_LUAJIT_ANDROID_APP_PATH')
+		or os.getenv'LUA_PROJECT_PATH' and path(os.getenv'LUA_PROJECT_PATH')/'../android/SDLLuaJIT'
+		or error("idk where to find the SDL LuaJIT Android app...")
+	local apkSrcDir = distDir/'android-apk'
+	exec('cp -R '..srcSdlLuaJITDir:escape()..' '..apkSrcDir:escape())
 end
 
 -- i'm using this for a webserver distributable that assumes the host has lua already installed
