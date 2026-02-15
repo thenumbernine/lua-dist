@@ -33,7 +33,7 @@ The `distinfo` file can be automatically created from a github repo by running `
 
 The `distinfo` file should contain the following variables:
 
-- `startDir` = what path within the directory structure to start at.
+- `startDir` = what path within the directory structure to start at. ... this will end up being identical to "name" soon I bet.
 
 - `files` = list of what files to copy into distributables.  copies from `dirname/file` to `dist/data/dirname/file`
 	- Lua files will be copied as is.  In fact, so will everything. Except...

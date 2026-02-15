@@ -29,9 +29,10 @@ targets:
 	win64 = Windows/x64
 	linux = Linux/x64
 	linux-appimage = Linux/x64 AppImage
-	osx = OSX/x64 .app
-	all = run all of them
+	osx = OSX/x64 .app ... though I don't have osx to test on anymore ...
+	android = android, requires my SDLLuaJIT-android project to be stored in either $SDL_LUAJIT_ANDROID_APP_PATH or in $LUA_PROJECT_PATH/../android/SDLLuaJIT/
 	webserver = idk what I was doing with this one
+	all = run all of them
 --]]
 
 -- global namespace so distinfo can see it
@@ -81,9 +82,15 @@ assert(#targets > 0, "don't have any targets to build for")
 local distDir = path'dist'
 assert(distDir.cd, "lfs_ffi might not have loaded correctly. check lfs_ffi.")
 
-assert(loadfile('distinfo', 'bt', _G))()
-assert(name)
-assert(files)
+
+local distinfo = require 'dist.load-distinfo' 'distinfo'
+print(require'ext.tolua'(distinfo))
+assert.type(distinfo.name, 'string')
+local startDir = distinfo.startDir or distinfo.name
+
+
+assert(distinfo.name)
+assert(distinfo.files)
 
 -- hmmm hmmmmm
 -- sometimes my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
@@ -106,6 +113,7 @@ end
 -- or at least something that works on all OS's
 
 local function copyFileToDir(basedir, srcpath, dstdir)
+--DEBUG:print('cwd '..path:cwd()..' copyFileToDir basedir='..path.escape(basedir)..' srcpath='..path.escape(srcpath)..' dstdir='..path.escape(dstdir))
 	basedir = path(basedir)
 	srcpath = path(srcpath)
 	dstdir = path(dstdir)
@@ -143,6 +151,7 @@ end
 
 -- TODO ignore hidden files, or at least just skip the .git folders
 local function copyDirToDir(basedir, srcdir, dstdir, pattern)
+error('copyDirToDir('..basedir..', '..srcdir..', '..dstdir..', '..pattern..')')
 	basedir = path(basedir)
 	srcdir = path(srcdir)
 	dstdir = path(dstdir)
@@ -167,33 +176,33 @@ local function copyDirToDir(basedir, srcdir, dstdir, pattern)
 end
 
 --[[
-baseDir = where to copy from
-destDir = where to copy to
-filesTable = list-of-files relative to baseDir
+srcDir = where to copy from
+dstDir = where to copy to
+filesTable = list-of-files relative to srcDir
 --]]
-local function copyByDescTable(baseDir, destDir, filesTable)
-	baseDir = path(baseDir)
-	destDir = path(destDir)
-	assert.type(filesTable, 'table')
-	for _,from in ipairs(filesTable) do
-		local topath = baseDir/from
-		local frompath = path(from)
-		assert((baseDir/frompath):exists(), "failed to find file "..frompath)
+local function copyByDescTable(srcDir, dstDir, files)
+--DEBUG:print('cwd '..path:cwd()..' copyByDescTable srcDir='..path.escape(srcDir)..' dstDir='..path.escape(dstDir)..' #files='..#files)
+	srcDir = path(srcDir)
+	dstDir = path(dstDir)
+	assert.type(files, 'table')
+	for _,file in ipairs(files) do
+		local filepath = path(file)
+		assert((srcDir/filepath):exists(), "failed to find file "..filepath)
 
-		-- fixme maybe?
-		local fromdir, fromname = frompath:getdir()
-		local todir, toname = topath:getdir()
-		assert.eq(fromname, toname)
---DEBUG:print('copyFileToDir', baseDir/fromdir, fromname, destDir/todir)
-		copyFileToDir(baseDir/fromdir, fromname, destDir/todir)
+		-- get the dir and name relative to srcDir
+		local filedir, filename = filepath:getdir()
+--DEBUG:print('filedir', filedir)
+--DEBUG:print('filename', filename)
+--DEBUG:print('copyByDescTable calling copyFileToDir', srcDir/filedir, filename, dstDir/filedir)
+		copyFileToDir(srcDir/filedir, filename, dstDir/filedir)
 	end
 end
 
 -- copy the file+dep tree to our platform-specific location
 local function copyBody(destDir)
-	copyByDescTable('.', destDir, files)
+	copyByDescTable('.', destDir/distinfo.name, distinfo.files)
 	local allDeps = {}
-	local leftDeps = table(deps)
+	local leftDeps = table(distinfo.deps)
 	while #leftDeps > 0 do
 		local dep = leftDeps:remove(1)
 		if not allDeps[dep] then
@@ -209,11 +218,15 @@ local function copyBody(destDir)
 				if distinfopath:exists() then
 print(destDir..' adding dist-builtin '..dep)
 					found = true
-					local env = setmetatable({}, {__index=_G})
-					local distinfodata = assert(load(assert(distinfopath:read()), nil, 't', env))()
-					assert(env.files, "failed to find any files in distinfo of dep "..dep)
+					local subdistinfo
+					assert(xpcall(function()
+						subdistinfo = require 'dist.load-distinfo'(distinfopath.path)
+						assert(subdistinfo.files, "failed to find any files in distinfo of dep "..dep)
+					end, function(err)
+						return 'for file: '..distinfopath..'\n'..err..'\n'..debug.traceback()
+					end))
 					-- now find where the luarocks or builtin or whatever is installed
-					for _,from in ipairs(env.files) do
+					for _,from in ipairs(subdistinfo.files) do
 						local to = destDir/from
 						local frombase = from:match'^(.*)%.lua$'
 						assert(not frombase:find'%.', "can't use this path since it has a dot in its name: "..tostring(frombase))
@@ -230,8 +243,8 @@ print(destDir..' adding dist-builtin '..dep)
 						assert.eq(fromname, toname)	-- because I guess copyFileToDir doesn't rename *shrug* should it?
 						copyFileToDir(fromdir, fromname, destDir/todir)
 					end
-print(dep..' adding '..table.concat(env.deps or {}, ', '))
-					leftDeps:append(env.deps)
+print(dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
+					leftDeps:append(subdistinfo.deps)
 				end
 			end
 
@@ -241,16 +254,19 @@ print(dep..' adding '..table.concat(env.deps or {}, ', '))
 				assert(depPath:exists(), "failed to find dependency base dir: "..depPath)
 				local distinfopath = depPath/'distinfo'
 				assert(distinfopath:exists(), "failed to find distinfo file: "..distinfopath)
-				local env = setmetatable({}, {__index=_G})
-				local distinfodata = select(2, assert(xpcall(function()
-					return assert(load(assert(distinfopath:read()), nil, 't', env))()
+				local subdistinfo
+				assert(xpcall(function()
+					subdistinfo = require 'dist.load-distinfo'(distinfopath.path)
 				end, function(err)
 					return 'for file: '..distinfopath..'\n'..err..'\n'..debug.traceback()
-				end)))
-				assert(env.files, "failed to find any files in distinfo of dep "..dep)
-				copyByDescTable(depPath, destDir, env.files)
-print(dep..' adding '..table.concat(env.deps or {}, ', '))
-				leftDeps:append(env.deps)
+				end))
+				assert(subdistinfo.files, "failed to find any files in distinfo of dep "..dep)
+
+				-- "depPath" should be relative to the projectsDir
+				-- so that the dist/platform/depPath is where the files end up
+				copyByDescTable(depPath, destDir/dep, subdistinfo.files)
+print(dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
+				leftDeps:append(subdistinfo.deps)
 			end
 		end
 	end
@@ -263,12 +279,14 @@ local function getForPlat(t, plat, reqtype)
 		or (type(t[1]) == reqtype and t[1] or t)
 end
 
+-- TODO I think this is on its way out
 local function getLuajitLibs(plat)
-	return getForPlat(luajitLibs, plat, 'table')
+	return getForPlat(distinfo.luajitLibs, plat, 'table')
 end
 
 local function getLuaArgs(plat)
-	return getForPlat(luaArgs, plat, 'string')
+	-- TODO if there's no luaArgs then you're running interactive lua, which means you don't want your shell to pipe to a file ...
+	return assert.type(distinfo.luaArgs, 'string')
 end
 
 local function makeWinScript(arch, osDir, binDirRel)
@@ -297,7 +315,7 @@ end
 -- the windows-specific stuff:
 local function makeWin(arch)
 	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
-	local distName = name..'-win'..bits
+	local distName = distinfo.name..'-win'..bits
 	local osDir = distDir/distName
 	osDir:mkdir()
 
@@ -352,13 +370,13 @@ end
 -- osx goes in dist/osx/${name}.app/Contents/
 local function makeOSX()
 	assert.eq(ffi.arch, 'x64', "don't know what bits of arch this is (32? 64? etc?)")
-	local distName = name..'-osx'
+	local distName = distinfo.name..'-osx'
 	-- the osx-specific stuff:
 	local osDir = distDir/distName
 	osDir:mkdir()
-	osDir(name..'.app'):mkdir()
+	osDir(distinfo.name..'.app'):mkdir()
 
-	local contentsDir = osDir(name..'.app/Contents')
+	local contentsDir = osDir(distinfo.name..'.app/Contents')
 	contentsDir:mkdir()
 
 	local macOSDir = contentsDir/'MacOS'
@@ -368,15 +386,15 @@ local function makeOSX()
 	resourcesDir:mkdir()
 
 	local iconProp = 'Icons'
-	local dstIconPath = resourcesDir/(name..'.icns')
+	local dstIconPath = resourcesDir/(distinfo.name..'.icns')
 	if iconOSX then
 		exec('cp '..path(iconOSX):escape()..' '..dstIconPath:escape())
-		iconProp = name
+		iconProp = distinfo.name
 	--elseif icon then	-- if no icon then use OSX default icon
 	else				-- if no icon then use Dist default icon
 		if exec('makeicns -in '..path(icon or defaultIconPath):escape()..' -out '..dstIconPath:escape(), false) then
 			-- only use the icon if makeicns didn't error
-			iconProp = name
+			iconProp = distinfo.name
 		end
 	end
 
@@ -387,9 +405,9 @@ local function makeOSX()
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>]]..name..[[</string>
+	<string>]]..distinfo.name..[[</string>
 	<key>CFBundleIdentifier</key>
-	<string>net.christopheremoore.]]..name..[[</string>
+	<string>net.christopheremoore.]]..distinfo.name..[[</string>
 	<key>CFBundleVersion</key>
 	<string>1.0</string>
 	<key>CFBundleIconFile</key>
@@ -496,7 +514,7 @@ end
 -- should I include binaries in the linux distribution?
 local function makeLinux(arch)
 	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
-	local distName = name..'-linux'..bits
+	local distName = distinfo.name..'-linux'..bits
 	local osDir = distDir/distName
 	osDir:mkdir()
 
@@ -545,7 +563,7 @@ end
 
 -- make for x64 only because I just don't have the x32 builds
 local function makeLinuxAppImage()
-	local distName = name..'-x86_64.AppDir'
+	local distName = distinfo.name..'-x86_64.AppDir'
 	local osDir = distDir/distName
 	osDir:mkdir()
 
@@ -598,10 +616,10 @@ cd $APPDIR
 	end
 
 	-- TODO myapp.desktop file .  is it myapp.desktop or is it *my app*.desktop ?
-	osDir(name..'.desktop'):write(
+	osDir(distinfo.name..'.desktop'):write(
 		table{
 			'[Desktop Entry]',
-			'Name='..name,			-- the name here has to match the dir being ${name}-x86_64.AppDir
+			'Name='..distinfo.name,			-- the name here has to match the dir being ${name}-x86_64.AppDir
 			'Exec=run-linux.sh',	-- wait, should this be AppRun, or should it be run-linux.sh and AppRun points to run-linux.sh as well?
 
 			--[[
@@ -609,7 +627,7 @@ cd $APPDIR
 			It has to be there.  You can't have no icon.  So TODO I need a default AppImage icon in the dist project here.
 			You can't have an extension on the entry here, this just has to match the <file>.png I guess.
 			--]]
-			'Icon='..name,	-- matches dstIconPath's name is ${name}.png
+			'Icon='..distinfo.name,	-- matches dstIconPath's name is ${name}.png
 
 			'Type=Application',
 			'Categories='..(AppImageCategories or 'Utility'),
@@ -621,7 +639,7 @@ cd $APPDIR
 	local srcIconPath = icon and path(icon) or defaultIconPath
 	assert(srcIconPath:exists(), "AppImage requires an icon, and I couldn't find the icon file at "..srcIconPath)
 
-	local dstIconPath = osDir/(name..'.png')
+	local dstIconPath = osDir/(distinfo.name..'.png')
 	exec('cp '..srcIconPath:escape()..' '..dstIconPath:escape())
 
 	distDir:cd()
@@ -642,7 +660,7 @@ end
 
 local function makeLinuxWin64()
 	local arch = 'x64'
-	local distName = name..'-linux-win-64'
+	local distName = distinfo.name..'-linux-win-64'
 
 	-- [[ BEGIN MATCHING makeLinux
 	local osDir = distDir/distName
@@ -697,6 +715,9 @@ local function makeLinuxWin64()
 	end
 end
 
+local function makeAndroid()
+end
+
 -- i'm using this for a webserver distributable that assumes the host has lua already installed
 -- it's a really bad hack, but I'm lazy
 local function makeWebServer()
@@ -733,5 +754,8 @@ if targets.all or targets.linux then makeLinux('x64') end
 if targets.all or targets['linux-appimage'] then makeLinuxAppImage() end
 
 if targets.linuxWin64 then makeLinuxWin64() end	-- build linux/windows x64 ... until I rethink how to break things apart and make them more modular ...
+
+if targets.android then makeAndroid() end
+
 -- hmm ... I'll finish that lazy hack later
 --if targets.all or targets.webserver then makeWebServer() end
