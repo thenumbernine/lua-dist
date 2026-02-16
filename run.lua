@@ -84,7 +84,6 @@ assert(distDir.cd, "lfs_ffi might not have loaded correctly. check lfs_ffi.")
 
 
 local distinfo = require 'dist.load-distinfo' 'distinfo'
-print(require'ext.tolua'(distinfo))
 assert.type(distinfo.name, 'string')
 local startDir = distinfo.startDir or distinfo.name
 
@@ -286,7 +285,7 @@ end
 
 local function getLuaArgs(plat)
 	-- TODO if there's no luaArgs then you're running interactive lua, which means you don't want your shell to pipe to a file ...
-	return assert.type(distinfo.luaArgs, 'string')
+	return assert.type(assert.index(distinfo, 'luaArgs'), 'string')
 end
 
 local function makeWinScript(arch, osDir, binDirRel)
