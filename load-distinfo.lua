@@ -11,6 +11,7 @@ distinfoenv.ffi = require 'ffi'
 return function(fn)
 	local thisdistinfoenv = setmetatable({}, {__index=distinfoenv})
 	assert(distinfoenv.loadfile(fn, 't', thisdistinfoenv))()
-	setmetatable(thisdistinfoenv, nil)
+	-- keep the metatable __index so that subsequent calls like `generateBindings` will get proper env functions
+	--setmetatable(thisdistinfoenv, nil)
 	return thisdistinfoenv
 end
