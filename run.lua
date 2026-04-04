@@ -98,7 +98,7 @@ print("luaDistVer", luaDistVer)
 assert.eq(luaDistVer, 'luajit')
 
 -- needed by the windows build ... why not build static?
-local luaLibVer = 'luajit-2.1-20250117.dll'
+local luaLibVer = 'luajit-2.1.dll'
 
 
 local homeDir = path((assert(os.getenv'HOME' or os.getenv'USERPROFILE', "failed to find your home dir")))
@@ -285,7 +285,8 @@ end
 
 local function getLuaArgs(plat)
 	-- TODO if there's no luaArgs then you're running interactive lua, which means you don't want your shell to pipe to a file ...
-	return assert.type(assert.index(distinfo, 'luaArgs'), 'string')
+	local luaArgs = assert.index(distinfo, 'luaArgs')
+	return assert.type(luaArgs, 'string')
 end
 
 local function makeWinScript(arch, osDir, binDirRel)

@@ -1,5 +1,0 @@
-name = "sha2"
-files = {
-	["sha2.lua"] = "sha2/sha2.lua",
-}
-
