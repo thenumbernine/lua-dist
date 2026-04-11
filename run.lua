@@ -563,6 +563,11 @@ end
 
 -- make for x64 only because I just don't have the x32 builds
 local function makeLinuxAppImage()
+	if not os.exec('which appimagetool') then
+		print("!!! can't find appimagetool, skipping !!!")
+		return
+	end
+
 	local distName = distinfo.name..'-x86_64.AppDir'
 	local osDir = distDir/distName
 	osDir:mkdir()
