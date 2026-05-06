@@ -212,10 +212,22 @@ local function copyBody(destDir)
 			-- TODO honestly thinking about it ... pushing the dist-builtin versions of these things means you're pushing untested ones
 			-- so you're assuming that whatever is in dist-builtin is matching whatever is on the local machine...
 			-- this is convenient for publishing cross-platform packages but it is risky if versions dont match...
+			--
+			-- also, since most other packages don't match my naming
+			--  and instead they just dump all their files in root and pray for no collision,
+			-- that means that reproducing other packages' folder structure with mine is a mess,
+			--  but also is incompatible with my 'distinfo' file which just lists files within the project subfolder.
+			--  (and other packages dont do this, they just have root folder files.)
+			-- so, only for dist/distinfos/*.distinfo external projects,
+			-- I guess I'll have to search in dist/release and copy across
+			--
+			-- also, new file system, all libs are in the bin subfolder
+			-- does Windows even allow this? or does it complain due to .lib vs .dll vs whatever search paths?
+			--  I think in Windows I'll have to add every single $project/bin/Windows/$arch/ folder to the PATH env var just so the windows dlsym will work.
 			do
 				local distinfopath = distProjectDir('distinfos/'..dep..'.distinfo')
 				if distinfopath:exists() then
-print(destDir..' adding dist-builtin '..dep)
+--DEBUG:print(destDir..' adding dist-builtin '..dep)
 					found = true
 					local subdistinfo
 					assert(xpcall(function()
@@ -227,12 +239,17 @@ print(destDir..' adding dist-builtin '..dep)
 					-- now find where the luarocks or builtin or whatever is installed
 					for _,from in ipairs(subdistinfo.files) do
 						local to = destDir/from
+						--[[ search in search paths:
 						local frombase = from:match'^(.*)%.lua$'
 						assert(not frombase:find'%.', "can't use this path since it has a dot in its name: "..tostring(frombase))
-						-- TODO search in release/
-						local frompath = package.searchpath(frombase, package.path) or package.searchpath(frombase, package.cpath)
+						local frompath = package.searchpath(frombase, package.path)
+									or package.searchpath(frombase, package.cpath)
 --DEBUG:print('frompath', frompath)
 						frompath = path(frompath)
+						--]]
+						-- [[ search in release/
+						local frompath = distProjectDir/'release'/from
+						--]]
 --DEBUG:print('path(frompath)', path(frompath))
 						local fromdir, fromname = frompath:getdir()
 --DEBUG:print('fromdir', fromdir)
@@ -240,9 +257,9 @@ print(destDir..' adding dist-builtin '..dep)
 						local todir, toname = path(to):getdir()
 --DEBUG:print('copyFileToDir', fromdir, fromname, destDir/todir)
 						assert.eq(fromname, toname)	-- because I guess copyFileToDir doesn't rename *shrug* should it?
-						copyFileToDir(fromdir, fromname, destDir/todir)
+						copyFileToDir(fromdir, fromname, todir)
 					end
-print(dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
+--DEBUG:print(dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
 					leftDeps:append(subdistinfo.deps)
 				end
 			end

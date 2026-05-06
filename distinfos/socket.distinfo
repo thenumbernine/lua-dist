@@ -1,6 +1,8 @@
 -- luasocket
 name = 'socket'
 
+local soext = ffi.os == 'Windows' and 'dll' or 'so'
+
 -- should these get their own subfolders?
 -- does dist expect them to have their own subfolders?
 files = {
@@ -17,6 +19,6 @@ files = {
 
 	-- these are folders that contain core.so-ext
 	-- how should I organize this?
-	'bin/${os}/${arch}/mime/core.${soext}',
-	'bin/${os}/${arch}/socket/core.${soext}',
+	'bin/'..ffi.os..'/'..ffi.arch..'/mime/core.'..soext,
+	'bin/'..ffi.os..'/'..ffi.arch..'/socket/core.'..soext,
 }
