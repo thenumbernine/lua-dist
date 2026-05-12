@@ -1,11 +1,13 @@
 -- luassl
 name = 'ssl'
 
+local soext = ffi.os == 'Windows' and 'dll' or 'so'
+
 files = {
 	'ssl.lua',
 	'ssl/https.lua',
 
 	-- these are folders that contain core.so-ext
 	-- how should I organize this?
-	'bin/${os}/${arch}/ssl.${soext}',
+	'bin/'..ffi.os..'/'..ffi.arch..'/ssl.'..soext,
 },
