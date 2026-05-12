@@ -20,6 +20,13 @@ out:insert''
 
 local dirname = path:cwd().path:split'/':last()
 out:insert('name = '..tolua(dirname))
+out:insert'\n'
+
+local giturl = io.readproc'git config --get remote.origin.url':trim()
+if giturl ~= '' then	-- should io.readproc fail on error? probably? oh it does?  what's going wrong?
+	out:insert('git = '..tolua(giturl))
+	out:insert'\n'
+end
 
 local files = io.readproc'git ls-files':trim():split'\n'
 out:insert'files = {'
