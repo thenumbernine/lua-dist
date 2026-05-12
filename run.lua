@@ -40,6 +40,8 @@ ffi = require 'ffi'
 require 'ext.env'(_G)
 local exec = require 'make.exec'
 
+local loadDistInfo = require 'dist.load-distinfo'
+
 local runDir = path:cwd()
 
 -- 'dist' project dir
@@ -83,13 +85,12 @@ local distDir = path'dist'
 assert(distDir.cd, "lfs_ffi might not have loaded correctly. check lfs_ffi.")
 
 
-local distinfo = require 'dist.load-distinfo' 'distinfo'
-assert.type(distinfo.name, 'string')
-local startDir = distinfo.startDir or distinfo.name
-
-
-assert(distinfo.name)
-assert(distinfo.files)
+-- TODO we really can't do this here anymore, we have to do it inside each of the platforms so that we get the right distinfo configuration
+--local distinfo = loadDistInfo 'distinfo'
+--assert.type(distinfo.name, 'string')
+local function getStartDir(distinfo)
+	return distinfo.startDir or distinfo.name
+end
 
 -- hmmm hmmmmm
 -- sometimes my 'luajit' is a script that sets up luarocks paths correctly and then runs luajit-openresty-2.1.0
@@ -203,7 +204,7 @@ local function copyByDescTable(srcDir, dstDir, files)
 end
 
 -- copy the file+dep tree to our platform-specific location
-local function copyBody(destDir)
+local function copyBody(distinfo, destDir, targetPlatform)
 	copyByDescTable('.', destDir/distinfo.name, distinfo.files)
 	local allDeps = {}
 	local leftDeps = table(distinfo.deps)
@@ -236,7 +237,7 @@ print('... '..destDir..' adding dist-builtin '..dep)
 					found = true
 					local subdistinfo
 					assert(xpcall(function()
-						subdistinfo = require 'dist.load-distinfo'(distinfopath.path)
+						subdistinfo = loadDistInfo(distinfopath.path, targetPlatform)
 						assert(subdistinfo.files, "failed to find any files in distinfo of dep "..dep)
 					end, function(err)
 						return 'for file: '..distinfopath..'\n'..err..'\n'..debug.traceback()
@@ -277,7 +278,7 @@ print('... '..dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
 				assert(distinfopath:exists(), "failed to find distinfo file: "..distinfopath)
 				local subdistinfo
 				assert(xpcall(function()
-					subdistinfo = require 'dist.load-distinfo'(distinfopath.path)
+					subdistinfo = loadDistInfo(distinfopath.path, targetPlatform)
 				end, function(err)
 					return 'for file: '..distinfopath..'\n'..err..'\n'..debug.traceback()
 				end))
@@ -301,17 +302,18 @@ local function getForPlat(t, plat, reqtype)
 end
 
 -- TODO I think this is on its way out
-local function getLuajitLibs(plat)
+local function getLuajitLibs(distinfo, plat)
 	return getForPlat(distinfo.luajitLibs, plat, 'table')
 end
 
-local function getLuaArgs(plat)
+local function getLuaArgs(distinfo, plat)
 	-- TODO if there's no luaArgs then you're running interactive lua, which means you don't want your shell to pipe to a file ...
 	local luaArgs = assert.index(distinfo, 'luaArgs')
 	return assert.type(luaArgs, 'string')
 end
 
-local function makeWinScript(arch, osDir, binDirRel)
+local function makeWinScript(distinfo, arch, osDir, binDirRel)
+	local startDir = getStartDir(distinfo)
 	local runVBSName = 'run-Windows-'..arch..'.vbs'
 	(osDir/runVBSName):write(
 		table{
@@ -325,7 +327,7 @@ local function makeWinScript(arch, osDir, binDirRel)
 [[env("LUA_PATH") = rootdir & "\?.lua;" & rootdir & "\?\?.lua;.\?.lua;.\?\?.lua"]],
 [[env("LUA_CPATH") = rootdir & "\bin\Windows\x64\?.dll"]],
 (startDir and [[shell.CurrentDirectory = ".\]]..startDir..[["]] or ''),
-[[shell.Run "]]..luaDistVer..[[.exe ]]..(getLuaArgs'win' or '')
+[[shell.Run "]]..luaDistVer..[[.exe ]]..(getLuaArgs(distinfo, 'win') or '')
 	..[[ > """ & rootdir & "\..\out.txt"" 2> """ & rootdir & "\..\err.txt""]] -- want to pipe output?
 	..[[", 0, True]],
 [[WScript.Quit]],
@@ -336,13 +338,20 @@ end
 
 -- the windows-specific stuff:
 local function makeWin(arch)
+	local targetPlatform = {os='Windows', arch=arch}
+
+	local distinfo = loadDistInfo('distinfo', targetPlatform)
+	assert.type(distinfo.name, 'string')
+	assert(distinfo.name)
+	assert(distinfo.files)
+
 	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
 	local distName = distinfo.name..'-win'..bits
 	local osDir = distDir/distName
 	osDir:mkdir()
 
 	local binDirRel = path'bin'/'Windows'/arch
-	local runVBSName = makeWinScript(arch, osDir, binDirRel)
+	local runVBSName = makeWinScript(distinfo, arch, osDir, binDirRel)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
@@ -357,11 +366,11 @@ local function makeWin(arch)
 	copyFileToDir(distBinPath, luaLibVer, binDir)
 
 	-- copy body
-	copyBody(dataDir)
+	copyBody(distinfo, dataDir, targetPlatform)
 
 	-- copy ffi windows dlls's
 	-- same as Linux
-	local libs = getLuajitLibs'win'
+	local libs = getLuajitLibs(distinfo, 'win')
 	if libs then
 		for _,basefn in ipairs(libs) do
 			for _,fn in ipairs{basefn..'.dll', basefn} do
@@ -391,7 +400,14 @@ end
 
 -- osx goes in dist/osx/${name}.app/Contents/
 local function makeOSX()
-	assert.eq(ffi.arch, 'x64', "don't know what bits of arch this is (32? 64? etc?)")
+	local targetPlatform = {os='OSX', arch=arch}
+	--assert.eq(targetPlatform.arch, 'x64', "don't know what bits of arch this is (32? 64? etc?)")
+
+	local distinfo = loadDistInfo('distinfo', targetPlatform)
+	assert.type(distinfo.name, 'string')
+	assert(distinfo.name)
+	assert(distinfo.files)
+
 	local distName = distinfo.name..'-osx'
 	-- the osx-specific stuff:
 	local osDir = distDir/distName
@@ -454,6 +470,7 @@ local function makeOSX()
 </plist>]])
 
 	-- lemme double check the dir structure on this ...
+	local startDir = getStartDir(distinfo)
 	local runshpath = macOSDir/'run-osx.sh'
 	runshpath:write(
 		table{
@@ -468,7 +485,7 @@ local function makeOSX()
 			[[export LUA_CPATH="$LUA_PROJECT_PATH/bin/OSX/x64/?.so"]],
 			startDir and 'cd "'..startDir..'"' or '',
 			luaDistVer..' '
-				..(getLuaArgs'osx' or '')
+				..(getLuaArgs(distinfo, 'osx') or '')
 				..' > "$LUA_PROJECT_PATH/../out.txt" 2> "$LUA_PROJECT_PATH/../err.txt"',
 		}:concat'\n'..'\n'
 	)
@@ -480,10 +497,10 @@ local function makeOSX()
 	copyFileToDir(distBinPath, luaDistVer, resourcesDir)
 
 	-- copy body
-	copyBody(resourcesDir)
+	copyBody(distinfo, resourcesDir, targetPlatform)
 
 	-- ffi osx so's
-	local libs = getLuajitLibs'osx'
+	local libs = getLuajitLibs(distinfo, 'osx')
 	if libs then
 		local resBinDir = resourcesDir/'bin/OSX'
 		resBinDir:mkdir(true)
@@ -510,7 +527,8 @@ local function makeOSX()
 end
 
 -- TODO change runshpath based on arch? run-linux32 vs run-linux64
-local function makeLinuxScript(osDir, binDirRel, scriptName, dontPipe)
+local function makeLinuxScript(distinfo, osDir, binDirRel, scriptName, dontPipe)
+	local startDir = getStartDir(distinfo)
 	local runshpath = osDir/(scriptName or 'run-linux.sh')
 	runshpath:write(
 		table{
@@ -526,7 +544,7 @@ local function makeLinuxScript(osDir, binDirRel, scriptName, dontPipe)
 			[[export LUA_CPATH="$LUA_PROJECT_PATH/bin/Linux/x64/?.so"]],
 			startDir and 'cd "'..startDir..'"' or '',
 			luaDistVer..' '
-				..(getLuaArgs'linux' or '')
+				..(getLuaArgs(distinfo, 'linux') or '')
 				..(dontPipe and '' or ' > "$LUA_PROJECT_PATH/../out.txt" 2> "$LUA_PROJECT_PATH/../err.txt"'),
 		}:concat'\n'..'\n'
 	)
@@ -535,6 +553,13 @@ end
 
 -- should I include binaries in the linux distribution?
 local function makeLinux(arch)
+
+	local targetPlatform = {os='Linux', arch=arch}
+	local distinfo = loadDistInfo('distinfo', targetPlatform)
+	assert.type(distinfo.name, 'string')
+	assert(distinfo.name)
+	assert(distinfo.files)
+
 	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
 	local distName = distinfo.name..'-linux'..bits
 	local osDir = distDir/distName
@@ -543,13 +568,13 @@ local function makeLinux(arch)
 	-- this is where luajit is relative to the runtime cwd
 	local binDirRel = path'bin/Linux'/arch
 
-	makeLinuxScript(osDir, binDirRel)
+	makeLinuxScript(distinfo, osDir, binDirRel)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
 	-- copy body
-	copyBody(dataDir)
+	copyBody(distinfo, dataDir, targetPlatform)
 
 	local distBinPath = getDistBinPath('Linux', arch)
 
@@ -559,7 +584,7 @@ local function makeLinux(arch)
 
 	-- copy ffi linux so's
 	-- same as Windows
-	local libs = getLuajitLibs'linux'
+	local libs = getLuajitLibs(distinfo, 'linux')
 	if libs then
 		for _,basefn in ipairs(libs) do
 			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
@@ -598,10 +623,10 @@ local function makeLinuxAppImage()
 	local binDirRel = path'bin/Linux'/arch	-- this is where luajit is relative to the runtime cwd
 
 	--[[ do I just do AppRun here, and have the .desktop run it?
-	makeLinuxScript(osDir, binDirRel, 'AppRun')
+	makeLinuxScript(distinfo, osDir, binDirRel, 'AppRun')
 	--]]
 	-- [[ or do I put the run in the usual place?
-	makeLinuxScript(osDir, binDirRel, nil, true)
+	makeLinuxScript(distinfo, osDir, binDirRel, nil, true)
 	local AppRunPath = osDir/'AppRun'
 	AppRunPath:write[[
 #!/bin/sh
@@ -615,7 +640,7 @@ cd $APPDIR
 	dataDir:mkdir()
 
 	-- copy body
-	copyBody(dataDir)
+	copyBody(distinfo, dataDir, {os='Linux', arch=arch})
 
 	local distBinPath = getDistBinPath('Linux', arch)
 
@@ -625,7 +650,7 @@ cd $APPDIR
 
 	-- copy ffi linux so's
 	-- same as Windows
-	local libs = getLuajitLibs'linux'
+	local libs = getLuajitLibs(distinfo, 'linux')
 	if libs then
 		for _,basefn in ipairs(libs) do
 			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
@@ -685,7 +710,9 @@ Linux: $HOME/.config/<appName>/
 
 end
 
+-- TODO this is bugged now that i'm loading distinfo once per platform...
 local function makeLinuxWin64()
+error"doesn't work anymore"
 	local arch = 'x64'
 	local distName = distinfo.name..'-linux-win-64'
 
@@ -693,17 +720,24 @@ local function makeLinuxWin64()
 	local osDir = distDir/distName
 	osDir:mkdir()
 
+	local targetPlatform = {os='Windows', arch=arch}
+	local distinfo = loadDistInfo('distinfo', targetPlatform)
+	assert.type(distinfo.name, 'string')
+	assert(distinfo.name)
+	assert(distinfo.files)
+
 	-- this is where luajit is relative to the runtime cwd
 	local binDirRel = path'bin'/'Linux'/arch
 
-	makeLinuxScript(osDir, binDirRel)
-	makeWinScript(arch, osDir, binDirRel)
+	makeLinuxScript(distinfo, osDir, binDirRel)
+	makeWinScript(distinfo, arch, osDir, binDirRel)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
 	-- copy body
-	copyBody(dataDir)
+	copyBody(distinfo, dataDir, {os='Windows', arch=arch})
+	copyBody(distinfo, dataDir, {os='Linux', arch=arch})	-- hmm how to tell copyBody to copy both linux and windows dlls ... hmm
 
 	local distBinPath = getDistBinPath('Linux', arch)
 
@@ -713,7 +747,7 @@ local function makeLinuxWin64()
 
 	-- copy ffi linux so's
 	-- same as Windows
-	local libs = getLuajitLibs'linux'
+	local libs = getLuajitLibs(distinfo, 'linux')
 	if libs then
 		for _,basefn in ipairs(libs) do
 			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
@@ -767,6 +801,11 @@ TODO TODO TODO I should save the sdl3 and luajit android binaries in its jniLibs
 4) copy the results from dist/android-apk/app/build/outputs/apk/release/${apkfilename}-${apkversion}-${android-abi}-${debug-vs-release}.apk
 --]]
 local function makeAndroid()
+	local distinfo = loadDistInfo('distinfo', {os='Android', arch='arm'})
+	assert.type(distinfo.name, 'string')
+	assert(distinfo.name)
+	assert(distinfo.files)
+
 	local apkFileName = distinfo.apkFileName or (function()
 		io.stderr:write("WARNING - didn't find apkFileName, using name instead\n")
 		return distinfo.name
@@ -789,6 +828,8 @@ end
 -- i'm using this for a webserver distributable that assumes the host has lua already installed
 -- it's a really bad hack, but I'm lazy
 local function makeWebServer()
+error'TODO'
+
 	assert(luaDistVer ~= 'luajit', "not supported just yet")
 	local osDir = distDir/'webserver'
 	osDir:mkdir()
@@ -801,7 +842,7 @@ local function makeWebServer()
 	dataDir:mkdir()
 
 	-- copy body
-	copyBody(dataDir)
+	copyBody(distinfo, dataDir, {os=='webserver', arch='webserver'})
 end
 
 print('targets', targets:concat', ')
@@ -821,9 +862,12 @@ if targets.all or targets.linux then makeLinux('x64') end
 -- TODO this will always break outside Linux
 if targets.all or targets['linux-appimage'] then makeLinuxAppImage() end
 
+-- broken...
 if targets.linuxWin64 then makeLinuxWin64() end	-- build linux/windows x64 ... until I rethink how to break things apart and make them more modular ...
 
+-- broken...
 if targets.android then makeAndroid() end
 
+-- broken...
 -- hmm ... I'll finish that lazy hack later
 --if targets.all or targets.webserver then makeWebServer() end

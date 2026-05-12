@@ -1,5 +1,6 @@
 -- load a distinfo file
 -- assumes it is in rua format so I can use shorthand lambda and bitflag markup
+local assert = require 'ext.assert'
 
 -- setup the new distinfo langfix-based loader
 local distinfoenv = setmetatable({}, {__index=_G})
@@ -8,7 +9,10 @@ require 'ext.env'(distinfoenv)
 distinfoenv.ffi = require 'ffi'
 --distinfoenv.require = require	-- needed?
 
-return function(fn)
+return function(fn, plat)
+	distinfoenv.os = assert.index(plat, 'os')
+	distinfoenv.arch = assert.index(plat, 'arch')
+
 	local thisdistinfoenv = setmetatable({}, {__index=distinfoenv})
 	assert(distinfoenv.loadfile(fn, 't', thisdistinfoenv))()
 	-- keep the metatable __index so that subsequent calls like `generateBindings` will get proper env functions
