@@ -10,4 +10,4 @@ files = {
 	-- these are folders that contain core.so-ext
 	-- how should I organize this?
 	'bin/'..ffi.os..'/'..ffi.arch..'/ssl.'..soext,
-},
+}
