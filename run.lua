@@ -400,8 +400,8 @@ end
 
 -- osx goes in dist/osx/${name}.app/Contents/
 local function makeOSX()
-	local targetPlatform = {os='OSX', arch=arch}
 	--assert.eq(targetPlatform.arch, 'x64', "don't know what bits of arch this is (32? 64? etc?)")
+	local targetPlatform = {os='OSX', arch='x64'}
 
 	local distinfo = loadDistInfo('distinfo', targetPlatform)
 	assert.type(distinfo.name, 'string')
