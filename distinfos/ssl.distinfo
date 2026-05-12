@@ -11,3 +11,6 @@ files = {
 	-- how should I organize this?
 	'bin/'..ffi.os..'/'..ffi.arch..'/ssl.'..soext,
 }
+deps = {
+	'socket',
+}
