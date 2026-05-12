@@ -102,7 +102,12 @@ local luaLibVer = 'luajit-2.1.dll'
 
 
 local homeDir = path((assert(os.getenv'HOME' or os.getenv'USERPROFILE', "failed to find your home dir")))
-local projectsDir = homeDir/'Projects/lua'	-- where to find your distinfo files.  Sometimes I saved this in $LUA_PROJECTS_DIR
+
+-- where to find your distinfo files.  Sometimes I saved this in $LUA_PROJECT_PATH
+local projectsDir = os.getenv'LUA_PROJECT_PATH'
+	and path(os.getenv'LUA_PROJECT_PATH')
+	or homeDir/'Projects/lua'
+assert(projectsDir:exists())
 
 local function getDistBinPath(os, arch)
 	return distProjectDir/'release/bin'/os/arch
@@ -227,7 +232,7 @@ local function copyBody(destDir)
 			do
 				local distinfopath = distProjectDir('distinfos/'..dep..'.distinfo')
 				if distinfopath:exists() then
---DEBUG:print(destDir..' adding dist-builtin '..dep)
+print('... '..destDir..' adding dist-builtin '..dep)
 					found = true
 					local subdistinfo
 					assert(xpcall(function()
@@ -259,7 +264,7 @@ local function copyBody(destDir)
 						assert.eq(fromname, toname)	-- because I guess copyFileToDir doesn't rename *shrug* should it?
 						copyFileToDir(fromdir, fromname, todir)
 					end
---DEBUG:print(dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
+print('... '..dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
 					leftDeps:append(subdistinfo.deps)
 				end
 			end
@@ -281,7 +286,7 @@ local function copyBody(destDir)
 				-- "depPath" should be relative to the projectsDir
 				-- so that the dist/platform/depPath is where the files end up
 				copyByDescTable(depPath, destDir/dep, subdistinfo.files)
-print(dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
+print('... '..dep..' adding '..table.concat(subdistinfo.deps or {}, ', '))
 				leftDeps:append(subdistinfo.deps)
 			end
 		end
@@ -456,15 +461,15 @@ local function makeOSX()
 			-- https://stackoverflow.com/questions/59895/can-a-bash-script-tell-what-directory-its-stored-in
 			[[DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"]],
 			[[cd $DIR/../Resources]],
-			[[export ROOT=`pwd`]],
-			[[export PATH="$ROOT/bin/OSX/x64"]],
-			[[export DYLD_LIBRARY_PATH="$ROOT/bin/OSX/x64"]],
-			[[export LUA_PATH="$ROOT/?.lua;$ROOT/?/?.lua;./?.lua;./?/?.lua"]],
-			[[export LUA_CPATH="$ROOT/bin/OSX/x64/?.so"]],
+			[[export LUA_PROJECT_PATH=`pwd`]],
+			[[export PATH="$LUA_PROJECT_PATH/bin/OSX/x64"]],
+			[[export DYLD_LIBRARY_PATH="$LUA_PROJECT_PATH/bin/OSX/x64"]],
+			[[export LUA_PATH="$LUA_PROJECT_PATH/?.lua;$LUA_PROJECT_PATH/?/?.lua;./?.lua;./?/?.lua"]],
+			[[export LUA_CPATH="$LUA_PROJECT_PATH/bin/OSX/x64/?.so"]],
 			startDir and 'cd "'..startDir..'"' or '',
 			luaDistVer..' '
 				..(getLuaArgs'osx' or '')
-				..' > "$ROOT/../out.txt" 2> "$ROOT/../err.txt"',
+				..' > "$LUA_PROJECT_PATH/../out.txt" 2> "$LUA_PROJECT_PATH/../err.txt"',
 		}:concat'\n'..'\n'
 	)
 	exec('chmod +x '..runshpath)
@@ -511,18 +516,18 @@ local function makeLinuxScript(osDir, binDirRel, scriptName, dontPipe)
 		table{
 			[[#!/usr/bin/env bash]],
 			'cd data',
-			[[export ROOT=`pwd`]],
-			[[export PATH="$ROOT/bin/Linux/x64"]],
+			[[export LUA_PROJECT_PATH=`pwd`]],
+			[[export PATH="$LUA_PROJECT_PATH/bin/Linux/x64"]],
 			-- this is binDir relative to dataDir
 			-- this line is needed for ffi's load to work
-			[[export LD_LIBRARY_PATH="$ROOT/]]..binDirRel..'"',
-			[[export LUA_PATH="$ROOT/?.lua;$ROOT/?/?.lua;./?.lua;./?/?.lua"]],
+			[[export LD_LIBRARY_PATH="$LUA_PROJECT_PATH/]]..binDirRel..'"',
+			[[export LUA_PATH="$LUA_PROJECT_PATH/?.lua;$LUA_PROJECT_PATH/?/?.lua;./?.lua;./?/?.lua"]],
 			-- this is binDir relative to dataDir
-			[[export LUA_CPATH="$ROOT/bin/Linux/x64/?.so"]],
+			[[export LUA_CPATH="$LUA_PROJECT_PATH/bin/Linux/x64/?.so"]],
 			startDir and 'cd "'..startDir..'"' or '',
 			luaDistVer..' '
 				..(getLuaArgs'linux' or '')
-				..(dontPipe and '' or ' > "$ROOT/../out.txt" 2> "$ROOT/../err.txt"'),
+				..(dontPipe and '' or ' > "$LUA_PROJECT_PATH/../out.txt" 2> "$LUA_PROJECT_PATH/../err.txt"'),
 		}:concat'\n'..'\n'
 	)
 	exec('chmod +x '..runshpath)
@@ -772,8 +777,10 @@ local function makeAndroid()
 	end)()
 error'TODO'
 	local srcSdlLuaJITDir =
-		os.getenv'SDL_LUAJIT_ANDROID_APP_PATH' and path(os.getenv'SDL_LUAJIT_ANDROID_APP_PATH')
-		or os.getenv'LUA_PROJECT_PATH' and path(os.getenv'LUA_PROJECT_PATH')/'../android/SDLLuaJIT'
+		os.getenv'SDL_LUAJIT_ANDROID_APP_PATH'
+			and path(os.getenv'SDL_LUAJIT_ANDROID_APP_PATH')
+		or os.getenv'LUA_PROJECT_PATH'
+			and path(os.getenv'LUA_PROJECT_PATH')/'../android/SDLLuaJIT'
 		or error("idk where to find the SDL LuaJIT Android app...")
 	local apkSrcDir = distDir/'android-apk'
 	exec('cp -R '..srcSdlLuaJITDir:escape()..' '..apkSrcDir:escape())
