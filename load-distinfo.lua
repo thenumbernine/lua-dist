@@ -10,8 +10,8 @@ distinfoenv.ffi = require 'ffi'
 --distinfoenv.require = require	-- needed?
 
 return function(fn, plat)
-	distinfoenv.os = assert.index(plat, 'os')
-	distinfoenv.arch = assert.index(plat, 'arch')
+	distinfoenv.targetOS = assert.index(plat, 'os')
+	distinfoenv.targetArch = assert.index(plat, 'arch')
 
 	local thisdistinfoenv = setmetatable({}, {__index=distinfoenv})
 	assert(distinfoenv.loadfile(fn, 't', thisdistinfoenv))()
