@@ -1,7 +1,7 @@
 -- luassl
 name = 'ssl'
 
-local soext = ffi.os == 'Windows' and 'dll' or 'so'
+local soext = targetOS == 'Windows' and 'dll' or 'so'
 
 files = {
 	'ssl.lua',
@@ -9,7 +9,7 @@ files = {
 
 	-- these are folders that contain core.so-ext
 	-- how should I organize this?
-	'bin/'..ffi.os..'/'..ffi.arch..'/ssl.'..soext,
+	'bin/'..targetOS..'/'..targetArch..'/ssl.'..soext,
 }
 deps = {
 	'socket',
