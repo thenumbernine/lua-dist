@@ -801,6 +801,7 @@ TODO TODO TODO I should save the sdl3 and luajit android binaries in its jniLibs
 4) copy the results from dist/android-apk/app/build/outputs/apk/release/${apkfilename}-${apkversion}-${android-abi}-${debug-vs-release}.apk
 --]]
 local function makeAndroid()
+	--[==[
 	local distinfo = loadDistInfo('distinfo', {os='Android', arch='arm'})
 	assert.type(distinfo.name, 'string')
 	assert(distinfo.name)
@@ -823,6 +824,39 @@ error'TODO'
 		or error("idk where to find the SDL LuaJIT Android app...")
 	local apkSrcDir = distDir/'android-apk'
 	exec('cp -R '..srcSdlLuaJITDir:escape()..' '..apkSrcDir:escape())
+	--]==]
+	-- [==[
+	local targetOS = 'Android'
+	local targetArch = 'arm'
+	local distinfo = loadDistInfo('distinfo', {os=targetOS, arch=targetArch})
+	assert.type(distinfo.name, 'string')
+	assert(distinfo.name)
+	assert(distinfo.files)
+
+	local distName = distinfo.name..'-'..targetOS..'-'..targetArch
+	local osDir = distDir/distName
+	osDir:mkdir()
+
+error'todo'
+
+	-- ok now ... clone? download master zip?  copy from local?
+	-- init base of our android project:
+	os.exec('cp -R ../../android/SDL-in-LuaJIT '..osDir..'/')
+
+	-- write build config info:
+	osDir/'config.rua':write(table{
+		'package = "io.github.thenumbernine.'..dist.name..'"',
+		'appname = "'..dist.name..'"',
+	}:concat'\n'..'\n')
+
+	-- rename stuff in the repo ... wait won't I need to init the base LuaJIT repo?
+	os.exec('cd '..osDir..'/SDL-in-LuaJIT/LuaJIT && ./rename.rua')
+
+	-- copy across repos we will need
+
+	-- build
+	os.exec('cd '..osDir..'/SDL-in-LuaJIT && ./make.rua')
+	--]==]
 end
 
 -- i'm using this for a webserver distributable that assumes the host has lua already installed
@@ -865,7 +899,6 @@ if targets.all or targets['linux-appimage'] then makeLinuxAppImage() end
 -- broken...
 if targets.linuxWin64 then makeLinuxWin64() end	-- build linux/windows x64 ... until I rethink how to break things apart and make them more modular ...
 
--- broken...
 if targets.android then makeAndroid() end
 
 -- broken...

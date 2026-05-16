@@ -52,12 +52,12 @@ for _,f in ipairs(files) do
 			-- I was just avoid it for now
 			-- hmm nope bad idea, cuz it mistakens any ffi/ or bin/ subdir for an os-specific, i.e. ffi/vorbis/codec.lua ...
 			-- then again maybe I should rename those too...
-			local cond = 'ffi.os == '..tolua(fparts[2])
+			local cond = 'targetOS == '..tolua(fparts[2])
 			condfiles[cond] ??= table()
 			condfiles[cond]:insert(f)
 			found = true
 		elseif #fparts == 4 then
-			local cond = 'ffi.os == '..tolua(fparts[2])..' and ffi.arch == '..tolua(fparts[3])
+			local cond = 'targetOS == '..tolua(fparts[2])..' and targetArch == '..tolua(fparts[3])
 			condfiles[cond] ??= table()
 			condfiles[cond]:insert(f)
 			found = true
