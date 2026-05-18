@@ -314,8 +314,10 @@ end
 
 local function makeWinScript(distinfo, arch, osDir, binDirRel)
 	local startDir = getStartDir(distinfo)
-	local runVBSName = 'run-Windows-'..arch..'.vbs'
-	(osDir/runVBSName):write(
+
+	-- I'm including both now that on some machines .bat warns and .vbs doesn't, while on others .vbs silent quits and .bat doesn't
+	-- [=[ vbs
+	(osDir/('run-Windows-'..arch..'.vbs')):write(
 		table{
 [[set shell = CreateObject("WScript.Shell")]],
 [[shell.CurrentDirectory = ".\data"]],
@@ -333,7 +335,23 @@ local function makeWinScript(distinfo, arch, osDir, binDirRel)
 [[WScript.Quit]],
 		}:concat'\r\n'..'\r\n'
 	)
-	return runVBSName
+	--]=]
+	-- [=[ bat
+	(osDir/('run-Windows-'..arch..'.bat')):write(
+		table{
+[[@echo off]],
+[[cd data]],
+[[set LUA_PROJECT_PATH=%CD%]],
+-- option #1: copy everything into bin/Windows/arch
+-- option #2: add lots of PATH entries
+[[set PATH=%PATH%;%LUA_PROJECT_PATH%\]]..binDirRel.path:gsub('/', '\\'),
+[[set LUA_PATH=%LUA_PROJECT_PATH%\?.lua;%LUA_PROJECT_PATH%\?\?.lua;.\?.lua;.\?\?.lua]],
+[[set LUA_CPATH=%LUA_PROJECT_PATH%\bin\Windows\]]..arch..[[\?.dll]],
+startDir and 'cd '..startDir:escape() or '',
+luaDistVer..'.exe '..(getLuaArgs(distinfo, 'win') or '')..' > "%LUA_PROJECT_PATH%\\..\\out.txt" 2> "%LUA_PROJECT_PATH%\\..\\err.txt"'
+		}
+	)
+	--]=]
 end
 
 -- the windows-specific stuff:
@@ -351,7 +369,7 @@ local function makeWin(arch)
 	osDir:mkdir()
 
 	local binDirRel = path'bin'/'Windows'/arch
-	local runVBSName = makeWinScript(distinfo, arch, osDir, binDirRel)
+	makeWinScript(distinfo, arch, osDir, binDirRel)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
