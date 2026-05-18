@@ -312,6 +312,10 @@ local function getLuaArgs(distinfo, plat)
 	return assert.type(luaArgs, 'string')
 end
 
+-- osDir is "$distPerOS/"
+-- binDirRel is "bin/Windows/$arch"
+-- to be relative to $distPerOS/data
+-- arch is probably always 'x64'
 local function makeWinScript(distinfo, arch, osDir, binDirRel)
 	local startDir = getStartDir(distinfo)
 
@@ -344,7 +348,8 @@ local function makeWinScript(distinfo, arch, osDir, binDirRel)
 [[set LUA_PROJECT_PATH=%CD%]],
 -- option #1: copy everything into bin/Windows/arch
 -- option #2: add lots of PATH entries
-[[set PATH=%PATH%;%LUA_PROJECT_PATH%\]]..binDirRel.path:gsub('/', '\\'),
+[[set PATH=%PATH%;%LUA_PROJECT_PATH%\]]
+	..binDirRel.path:gsub('/', '\\'),	-- gotta gsub manually to support packaging win distributables on non-win platforms
 [[set LUA_PATH=%LUA_PROJECT_PATH%\?.lua;%LUA_PROJECT_PATH%\?\?.lua;.\?.lua;.\?\?.lua]],
 [[set LUA_CPATH=%LUA_PROJECT_PATH%\bin\Windows\]]..arch..[[\?.dll]],
 startDir and 'cd '..startDir:escape() or '',
@@ -402,6 +407,23 @@ local function makeWin(arch)
 					print("couldn't find library "..fn.." in paths "..tolua(distBinPath))
 				end
 			end
+		end
+	end
+
+	-- hmm how to handle windows' dll search paths, since dlopen doesn't care what LUA_CPATH says, and only needs everything in PATH ...
+	-- after 'copyBody' is done, all dlls should be where they are
+	-- I can always just move them all to binDir ...
+	for f in dataDir:dir() do
+		local binWinDir = dataDir/f/'bin/Windows'
+		local binWinArchDir = binWinDir/arch
+		if binWinArchDir:exists() then
+			-- if $osDir/data/$project/bin/Windows/$arch/ exists
+			for g in binWinArchDir:dir() do
+				-- them move all its conents to $osDir/data/bin/Windows/$arch/
+				(binWinArchDir/g):move(binDir/g)
+			end
+			binWinArchDir:rmdir()
+			binWinDir:rmdir()
 		end
 	end
 
