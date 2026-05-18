@@ -38,7 +38,6 @@ files = {
 	"release/bin/Windows/x64/luajit-2.1.exp",
 	"release/bin/Windows/x64/luajit.exe",
 	"release/bin/Windows/x64/mime/core.dll",
-	"release/bin/Windows/x64/pthreadVC3.dll",
 	"release/bin/Windows/x64/socket/core.dll",
 	"release/bin/Windows/x64/ssl/core.dll",
 	"release/dkjson.lua",
