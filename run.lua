@@ -321,7 +321,8 @@ local function makeWinScript(distinfo, arch, osDir, binDirRel)
 
 	-- I'm including both now that on some machines .bat warns and .vbs doesn't, while on others .vbs silent quits and .bat doesn't
 	-- [=[ vbs
-	(osDir/('run-Windows-'..arch..'.vbs')):write(
+	local vbsPath = osDir/('run-Windows-'..arch..'.vbs')
+	vbsPath:write(
 		table{
 [[set shell = CreateObject("WScript.Shell")]],
 [[shell.CurrentDirectory = ".\data"]],
@@ -341,7 +342,8 @@ local function makeWinScript(distinfo, arch, osDir, binDirRel)
 	)
 	--]=]
 	-- [=[ bat
-	(osDir/('run-Windows-'..arch..'.bat')):write(
+	local batPath = osDir/('run-Windows-'..arch..'.bat')
+	batPath:write(
 		table{
 [[@echo off]],
 [[cd data]],
@@ -352,9 +354,9 @@ local function makeWinScript(distinfo, arch, osDir, binDirRel)
 	..binDirRel.path:gsub('/', '\\'),	-- gotta gsub manually to support packaging win distributables on non-win platforms
 [[set LUA_PATH=%LUA_PROJECT_PATH%\?.lua;%LUA_PROJECT_PATH%\?\?.lua;.\?.lua;.\?\?.lua]],
 [[set LUA_CPATH=%LUA_PROJECT_PATH%\bin\Windows\]]..arch..[[\?.dll]],
-startDir and 'cd '..startDir:escape() or '',
+startDir and 'cd '..path(startDir):escape() or '',
 luaDistVer..'.exe '..(getLuaArgs(distinfo, 'win') or '')..' > "%LUA_PROJECT_PATH%\\..\\out.txt" 2> "%LUA_PROJECT_PATH%\\..\\err.txt"'
-		}
+		}:concat'\r\n'..'\r\n'
 	)
 	--]=]
 end
@@ -884,7 +886,7 @@ error'todo'
 	os.exec('cp -R ../../android/SDL-in-LuaJIT '..osDir..'/')
 
 	-- write build config info:
-	osDir/'config.rua':write(table{
+	(osDir/'config.rua'):write(table{
 		'package = "io.github.thenumbernine.'..dist.name..'"',
 		'appname = "'..dist.name..'"',
 	}:concat'\n'..'\n')
