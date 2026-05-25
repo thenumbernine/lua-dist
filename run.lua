@@ -362,26 +362,27 @@ luaDistVer..'.exe '..(getLuaArgs(distinfo, 'win') or '')..' > "%LUA_PROJECT_PATH
 end
 
 -- the windows-specific stuff:
-local function makeWin(arch)
-	local targetPlatform = {os='Windows', arch=arch}
+local function makeWin(targetArch)
+	local targetOS = 'Windows'
+	local targetPlatform = {os=targetOS, arch=targetArch}
 
 	local distinfo = loadDistInfo('distinfo', targetPlatform)
 	assert.type(distinfo.name, 'string')
 	assert(distinfo.name)
 	assert(distinfo.files)
 
-	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
+	local bits = assert.index({x86='32',x64='64'}, targetArch, "don't know what bits of arch this is (32? 64? etc?)")
 	local distName = distinfo.name..'-win'..bits
 	local osDir = distDir/distName
 	osDir:mkdir()
 
-	local binDirRel = path'bin'/'Windows'/arch
-	makeWinScript(distinfo, arch, osDir, binDirRel)
+	local binDirRel = path'bin'/targetOS/targetArch
+	makeWinScript(distinfo, targetArch, osDir, binDirRel)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
-	local distBinPath = getDistBinPath('Windows', arch)
+	local distBinPath = getDistBinPath(targetOS, targetArch)
 
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
@@ -395,6 +396,7 @@ local function makeWin(arch)
 
 	-- copy ffi windows dlls's
 	-- same as Linux
+	-- old system?  now i'm moving to storing binaries per-library
 	local libs = getLuajitLibs(distinfo, 'win')
 	if libs then
 		for _,basefn in ipairs(libs) do
@@ -416,16 +418,16 @@ local function makeWin(arch)
 	-- after 'copyBody' is done, all dlls should be where they are
 	-- I can always just move them all to binDir ...
 	for f in dataDir:dir() do
-		local binWinDir = dataDir/f/'bin/Windows'
-		local binWinArchDir = binWinDir/arch
-		if binWinArchDir:exists() then
-			-- if $osDir/data/$project/bin/Windows/$arch/ exists
-			for g in binWinArchDir:dir() do
-				-- them move all its conents to $osDir/data/bin/Windows/$arch/
-				(binWinArchDir/g):move(binDir/g)
+		local binOSDir = dataDir/f/'bin'/targetOS
+		local binOSArchDir = binOSDir/targetArch
+		if binOSArchDir:exists() then
+			-- if $osDir/data/$project/bin/$targetOS/$targetArch/ exists
+			for g in binOSArchDir:dir() do
+				-- them move all its conents to $osDir/data/bin/$targetOS/$targetArch/
+				(binOSArchDir/g):move(binDir/g)
 			end
-			binWinArchDir:rmdir()
-			binWinDir:rmdir()
+			binOSArchDir:rmdir()
+			binOSDir:rmdir()
 		end
 	end
 
@@ -577,9 +579,9 @@ local function makeLinuxScript(distinfo, osDir, binDirRel, scriptName, dontPipe)
 			[[#!/usr/bin/env bash]],
 			'cd data',
 			[[export LUA_PROJECT_PATH=`pwd`]],
-			[[export PATH="$LUA_PROJECT_PATH/bin/Linux/x64"]],
 			-- this is binDir relative to dataDir
 			-- this line is needed for ffi's load to work
+			[[export PATH="$LUA_PROJECT_PATH/bin/Linux/]]..binDirRel..'"',
 			[[export LD_LIBRARY_PATH="$LUA_PROJECT_PATH/]]..binDirRel..'"',
 			[[export LUA_PATH="$LUA_PROJECT_PATH/?.lua;$LUA_PROJECT_PATH/?/?.lua;./?.lua;./?/?.lua"]],
 			-- this is binDir relative to dataDir
@@ -594,42 +596,45 @@ local function makeLinuxScript(distinfo, osDir, binDirRel, scriptName, dontPipe)
 end
 
 -- should I include binaries in the linux distribution?
-local function makeLinux(arch)
-
-	local targetPlatform = {os='Linux', arch=arch}
+local function makeLinux(targetArch)
+	local targetOS = 'Linux'
+	local targetPlatform = {os=targetOS, arch=targetArch}
 	local distinfo = loadDistInfo('distinfo', targetPlatform)
 	assert.type(distinfo.name, 'string')
 	assert(distinfo.name)
 	assert(distinfo.files)
 
-	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
+	local bits = assert.index({x86='32',x64='64'}, targetArch, "don't know what bits of arch this is (32? 64? etc?)")
 	local distName = distinfo.name..'-linux'..bits
 	local osDir = distDir/distName
 	osDir:mkdir()
 
 	-- this is where luajit is relative to the runtime cwd
-	local binDirRel = path'bin/Linux'/arch
+	local binDirRel = path'bin'/targetOS/targetArch
 
 	makeLinuxScript(distinfo, osDir, binDirRel)
 
 	local dataDir = osDir/'data'
 	dataDir:mkdir()
 
-	-- copy body
-	copyBody(distinfo, dataDir, targetPlatform)
-
-	local distBinPath = getDistBinPath('Linux', arch)
+	local distBinPath = getDistBinPath(targetOS, targetArch)
 
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
+
+	-- copy luajit
 	copyFileToDir(distBinPath, luaDistVer, binDir)
+
+	-- copy body
+	copyBody(distinfo, dataDir, targetPlatform)
 
 	-- copy ffi linux so's
 	-- same as Windows
+	-- old system?  now i'm moving to storing binaries per-library
 	local libs = getLuajitLibs(distinfo, 'linux')
 	if libs then
 		for _,basefn in ipairs(libs) do
-			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
+			for _,fn in ipairs{'lib'..basefn..'.so', basefn} do
 				if distBinPath(fn):exists() then
 					if distBinPath(fn):isdir() then
 						copyDirToDir(distBinPath, fn, binDir)
@@ -640,6 +645,23 @@ local function makeLinux(arch)
 					print("couldn't find library "..fn.." in paths "..tolua(distBinPath))
 				end
 			end
+		end
+	end
+
+	-- same as windows,
+	-- consolidate .so'd:
+	-- copy all the <package>/bin/Linux/x64/* into bin/Linux/x64
+	for f in dataDir:dir() do
+		local binOSDir = dataDir/f/'bin'/targetOS
+		local binOSArchDir = binOSDir/targetArch
+		if binOSArchDir:exists() then
+			-- if $osDir/data/$project/bin/$targetOS/$targetArch/ exists
+			for g in binOSArchDir:dir() do
+				-- them move all its conents to $osDir/data/bin/$targetOS/$targetArch/
+				(binOSArchDir/g):move(binDir/g)
+			end
+			binOSArchDir:rmdir()
+			binOSDir:rmdir()
 		end
 	end
 
@@ -931,9 +953,9 @@ if targets.all or targets.osx then makeOSX() end
 -- TODO separate os/arch like ffi does? win32 => Windows/x86, win64 => Windows/x64
 --if targets.all or targets.win32 then makeWin('x86') end
 
-if targets.all or targets.win64 then makeWin('x64') end
+if targets.all or targets.win64 then makeWin'x64' end
 
-if targets.all or targets.linux then makeLinux('x64') end
+if targets.all or targets.linux then makeLinux'x64' end
 
 -- TODO this will always break outside Linux
 if targets.all or targets['linux-appimage'] then makeLinuxAppImage() end
