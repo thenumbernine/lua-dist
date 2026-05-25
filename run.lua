@@ -581,7 +581,7 @@ local function makeLinuxScript(distinfo, osDir, binDirRel, scriptName, dontPipe)
 			[[export LUA_PROJECT_PATH=`pwd`]],
 			-- this is binDir relative to dataDir
 			-- this line is needed for ffi's load to work
-			[[export PATH="$LUA_PROJECT_PATH/bin/Linux/]]..binDirRel..'"',
+			[[export PATH="$LUA_PROJECT_PATH/]]..binDirRel..'"',
 			[[export LD_LIBRARY_PATH="$LUA_PROJECT_PATH/]]..binDirRel..'"',
 			[[export LUA_PATH="$LUA_PROJECT_PATH/?.lua;$LUA_PROJECT_PATH/?/?.lua;./?.lua;./?/?.lua"]],
 			-- this is binDir relative to dataDir
