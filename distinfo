@@ -3,6 +3,8 @@
 --------------------------------------------
 
 name = "dist"
+git = "https://github.com/thenumbernine/lua-dist"
+
 files = {
 	"LICENSE",
 	"README.md",
@@ -17,6 +19,8 @@ files = {
 	"distinfos/sha2.distinfo",
 	"distinfos/socket.distinfo",
 	"distinfos/ssl.distinfo",
+	"load-distinfo.lua",
+	"makezip.lua",
 	"release/bin/Linux/x64/libclip.so",
 	"release/bin/Linux/x64/luajit",
 	"release/bin/Linux/x64/mime/core.so",
