@@ -39,6 +39,7 @@ targets:
 ffi = require 'ffi'
 require 'ext.env'(_G)
 local exec = require 'make.exec'
+local makeZip = require 'dist.makezip'
 
 local loadDistInfo = require 'dist.load-distinfo'
 
@@ -434,11 +435,7 @@ local function makeWin(targetArch)
 	-- now make the zip
 	if not cmdline.dontZip then
 		distDir(distName..'.zip'):remove()
-		if ffi.os == 'Windows' then
-			exec('cd dist && 7z.exe a -tzip "'..distName..'.zip" "'..distName..'"')
-		else
-			exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'"')
-		end
+		makeZip('dist', distName)
 	end
 end
 
@@ -566,7 +563,7 @@ local function makeOSX()
 	-- now make the zip
 	if not cmdline.dontZip then
 		distDir(distName..'.zip'):remove()
-		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
+		makeZip('dist', distName)
 	end
 end
 
@@ -668,7 +665,7 @@ local function makeLinux(targetArch)
 	-- now make the zip
 	if not cmdline.dontZip then
 		distDir(distName..'.zip'):remove()
-		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
+		makeZip('dist', distName)
 	end
 end
 
@@ -836,7 +833,7 @@ error"doesn't work anymore"
 	-- this is assuming we're running from linux ...
 	if not cmdline.dontZip then
 		distDir(distName..'.zip'):remove()
-		exec('cd dist && zip -r "'..distName..'.zip" "'..distName..'/"')
+		makeZip('dist', distName)
 	end
 end
 
