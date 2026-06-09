@@ -428,7 +428,7 @@ local function makeOSX()
 	assert(distinfo.name)
 	assert(distinfo.files)
 
-	local distName = distinfo.name..'-osx'
+	local distName = distinfo.name..'-OSX-'..arch
 	-- the osx-specific stuff:
 	local osDir = distDir/distName
 	osDir:mkdir()
@@ -456,6 +456,8 @@ local function makeOSX()
 		end
 	end
 
+	local shfn = 'run-OSX-'..arch..'.sh'
+
 	contentsDir'PkgInfo':write'APPLhect'
 	contentsDir'Info.plist':write([[
 <?xml version="1.0" encoding="UTF-8"?>
@@ -475,7 +477,7 @@ local function makeOSX()
 	<key>CFBundleDocumentTypes</key>
 	<array/>
 	<key>CFBundleExecutable</key>
-	<string>run-osx.sh</string>
+	<string>]]..shfn..[[</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>1.0</string>
 	<key>CFBundlePackageType</key>
@@ -491,7 +493,7 @@ local function makeOSX()
 
 	-- lemme double check the dir structure on this ...
 	local startDir = getStartDir(distinfo)
-	local runshpath = macOSDir/'run-osx.sh'
+	local runshpath = macOSDir/shfn
 	runshpath:write(
 		table{
 			[[#!/usr/bin/env bash]],
@@ -520,7 +522,7 @@ local function makeOSX()
 	copyBody(distinfo, resourcesDir, targetPlatform)
 
 	-- ffi osx so's
-	local libs = getLuajitLibs(distinfo, 'osx')
+	local libs = getLuajitLibs(distinfo, 'OSX')
 	if libs then
 		local resBinDir = resourcesDir/'bin/OSX'
 		resBinDir:mkdir(true)
@@ -626,7 +628,7 @@ local function makeLinux(arch)
 
 	-- same as windows,
 	-- consolidate .so'd:
-	-- copy all the <package>/bin/Linux/x64/* into bin/Linux/x64
+	-- copy all the <package>/bin/Linux/$arch/* into bin/Linux/$arch
 	for f in dataDir:dir() do
 		local binOSDir = dataDir/f/'bin'/targetOS
 		local binOSArchDir = binOSDir/arch
@@ -754,7 +756,7 @@ end
 local function makeLinuxWindows()
 error"doesn't work anymore"
 	local arch = 'x64'
-	local distName = distinfo.name..'-Linux-Windows-x64'
+	local distName = distinfo.name..'-Linux-Windows-'..arch
 
 	-- [[ BEGIN MATCHING makeLinux
 	local osDir = distDir/distName
