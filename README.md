@@ -12,9 +12,9 @@ and run `../path/to/dist/run.lua`
 
 This will make the following:
 - An OSX `.app` file that will run in OSX.
-- A Windows `.zip` with a folder that contains `run.bat`.
-- A Linux `.zip` with a foldre that contains `run-linux64.sh`.
-- If you are on Linux and have`appimagetool` installed then you can run `dist/run.lua linux-appimage` to produce an `.AppImage` packaged executable file.
+- A Windows `.zip` with a folder that contains `run-Windows-x64.bat` and `run-Windows-x64.vbs`.
+- A Linux `.zip` with a foldre that contains `run-Linux-x64.sh`.
+- If you are on Linux and have`appimagetool` installed then you can run `dist/run.lua Linux-AppImage` to produce an `.AppImage` packaged executable file.
 
 That's all I've got for now.  Maybe an Android version will come someday, based on the JNI SDL + luajit build of android, but I last used this environment 10 years ago, and over time their SDK just gets more and more unbearable.
 
@@ -23,7 +23,7 @@ Usage:
 /path/to/dist/run.lua [platform]
 ```
 
-Where `platform` is `all` or one of the following: `osx, win32, win64, linux, linux-appimage`.
+Where `platform` is `all` or one of the following: `OSX, Windows, Windows-x86, Windows-x64, Linux, Linux-x86, Linux-x64, Linux-AppImage, Linux-x86-AppImage, Linux-x64-AppImage`.
 
 This requires a `distinfo` file to be present in the working directory.
 
@@ -53,9 +53,9 @@ The `distinfo` file should contain the following variables:
 
 - `luaArgs` = lua args, or
 	- table of platform-specific lua args, with the first entry being the default,
-	- `win` being the windows-specific args
-	- `osx` being the OSX-specific args
-	- `linux` being the windows-specific args
+	- `Windows` being the windows-specific args
+	- `OSX` being the OSX-specific args
+	- `Linux` being the windows-specific args
 
 ### AppImage configuration has the following variables:
 
