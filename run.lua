@@ -583,7 +583,7 @@ local function makeLinux(arch)
 	assert(distinfo.files)
 
 	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
-	local distName = distinfo.name..'-Linux-'..bits
+	local distName = distinfo.name..'-Linux-'..arch
 	local osDir = distDir/distName
 	osDir:mkdir()
 
