@@ -323,7 +323,7 @@ local function makeWindowsScript(distinfo, arch, osDir, binDirRel)
 		:append{
 [[	" > " & Chr(32) & rootdir & "\..\out.txt" & Chr(32) & _]], -- want to pipe output?
 [[	" 2> " & Chr(32) & rootdir & "\..\err.txt" & Chr(32) & _]],
-[[	Chr(32), 0, True,]],
+[[	Chr(32), 0, True]],
 
 [[WScript.Quit]],
 		}:concat'\r\n'..'\r\n'
