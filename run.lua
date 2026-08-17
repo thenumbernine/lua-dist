@@ -301,6 +301,7 @@ local function makeWindowsScript(distinfo, arch, osDir, binDirRel)
 	-- I'm including both now that on some machines .bat warns and .vbs doesn't, while on others .vbs silent quits and .bat doesn't
 	-- [=[ vbs
 	local vbsPath = osDir/('run-Windows-'..arch..'.vbs')
+	local exeArgs = getLuaArgs(distinfo, 'Windows')
 	vbsPath:write(
 		table{
 [[set shell = CreateObject("WScript.Shell")]],
@@ -313,9 +314,17 @@ local function makeWindowsScript(distinfo, arch, osDir, binDirRel)
 [[env("LUA_PATH") = rootdir & "\?.lua;" & rootdir & "\?\?.lua;.\?.lua;.\?\?.lua"]],
 [[env("LUA_CPATH") = rootdir & "\bin\Windows\]]..arch..[[\?.dll"]],
 (startDir and [[shell.CurrentDirectory = ".\]]..startDir..[["]] or ''),
-[[shell.Run "]]..luaDistVer..[[.exe ]]..(getLuaArgs(distinfo, 'Windows') or '')
-	..[[ > """ & rootdir & "\..\out.txt"" 2> """ & rootdir & "\..\err.txt""]] -- want to pipe output?
-	..[[", 0, True]],
+
+[[shell.Run "cmd.exe /c " & Chr(32) & _]],
+[[	Chr(32) & "]]..luaDistVer..[[.exe" & _]],
+		}:append(exeArgs and {
+[[	Chr(32) & " " & Chr(32) & "]]..exeArgs..[[" & Chr(32) & _]],
+		} or nil)
+		:append{
+[[	" > " & Chr(32) & rootdir & "\..\out.txt" & Chr(32) & _]], -- want to pipe output?
+[[	" 2> " & Chr(32) & rootdir & "\..\err.txt" & Chr(32) & _]],
+[[	Chr(32), 0, True,]],
+
 [[WScript.Quit]],
 		}:concat'\r\n'..'\r\n'
 	)
