@@ -359,8 +359,7 @@ local function makeWindows(arch)
 	assert(distinfo.name)
 	assert(distinfo.files)
 
-	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
-	local distName = distinfo.name..'-Windows-'..arch
+	local distName = distinfo.name..'-'..targetOS..'-'..arch
 	local osDir = distDir/distName
 	osDir:mkdir()
 
@@ -385,7 +384,7 @@ local function makeWindows(arch)
 	-- copy ffi windows dlls's
 	-- same as Linux
 	-- old system?  now i'm moving to storing binaries per-library
-	local libs = getLuajitLibs(distinfo, 'Windows')
+	local libs = getLuajitLibs(distinfo, targetOS)
 	if libs then
 		for _,basefn in ipairs(libs) do
 			for _,fn in ipairs{basefn..'.dll', basefn} do
@@ -430,14 +429,15 @@ end
 local function makeOSX()
 	local arch = 'x64'
 	--assert.eq(targetPlatform.arch, 'x64', "don't know what bits of arch this is (32? 64? etc?)")
-	local targetPlatform = {os='OSX', arch=arch}
+	local targetOS = 'OSX'
+	local targetPlatform = {os=targetOS, arch=arch}
 
 	local distinfo = loadDistInfo('distinfo', targetPlatform)
 	assert.type(distinfo.name, 'string')
 	assert(distinfo.name)
 	assert(distinfo.files)
 
-	local distName = distinfo.name..'-OSX-'..arch
+	local distName = distinfo.name..'-'..targetOS..'-'..arch
 	-- the osx-specific stuff:
 	local osDir = distDir/distName
 	osDir:mkdir()
@@ -465,7 +465,7 @@ local function makeOSX()
 		end
 	end
 
-	local shfn = 'run-OSX-'..arch..'.sh'
+	local shfn = 'run-'..targetOS..'-'..arch..'.sh'
 
 	contentsDir'PkgInfo':write'APPLhect'
 	contentsDir'Info.plist':write([[
@@ -510,10 +510,10 @@ local function makeOSX()
 			[[DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"]],
 			[[cd $DIR/../Resources]],
 			[[export LUA_PROJECT_PATH=`pwd`]],
-			[[export PATH="$LUA_PROJECT_PATH/bin/OSX/]]..arch..[["]],
-			[[export DYLD_LIBRARY_PATH="$LUA_PROJECT_PATH/bin/OSX/]]..arch..[["]],
+			[[export PATH="$LUA_PROJECT_PATH/bin/]]..targetOS..'/'..arch..[["]],
+			[[export DYLD_LIBRARY_PATH="$LUA_PROJECT_PATH/bin/]]..targetOS..'/'..arch..[["]],
 			[[export LUA_PATH="$LUA_PROJECT_PATH/?.lua;$LUA_PROJECT_PATH/?/?.lua;./?.lua;./?/?.lua"]],
-			[[export LUA_CPATH="$LUA_PROJECT_PATH/bin/OSX/]]..arch..[[/?.so"]],
+			[[export LUA_CPATH="$LUA_PROJECT_PATH/bin/]]..targetOS..'/'..arch..[[/?.so"]],
 			startDir and 'cd "'..startDir..'"' or '',
 			luaDistVer..' '
 				..(getLuaArgs(distinfo, 'osx') or '')
@@ -522,7 +522,7 @@ local function makeOSX()
 	)
 	exec('chmod +x '..runshpath)
 
-	local distBinPath = getDistBinPath('OSX', arch)
+	local distBinPath = getDistBinPath(targetOS, arch)
 
 	-- copy luajit
 	copyFileToDir(distBinPath, luaDistVer, resourcesDir)
@@ -531,9 +531,9 @@ local function makeOSX()
 	copyBody(distinfo, resourcesDir, targetPlatform)
 
 	-- ffi osx so's
-	local libs = getLuajitLibs(distinfo, 'OSX')
+	local libs = getLuajitLibs(distinfo, targetOS)
 	if libs then
-		local resBinDir = resourcesDir/'bin/OSX'
+		local resBinDir = resourcesDir/'bin'/targetOS
 		resBinDir:mkdir(true)
 		for _,basefn in ipairs(libs) do
 			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
@@ -586,13 +586,13 @@ end
 local function makeLinux(arch)
 	local targetOS = 'Linux'
 	local targetPlatform = {os=targetOS, arch=arch}
+
 	local distinfo = loadDistInfo('distinfo', targetPlatform)
 	assert.type(distinfo.name, 'string')
 	assert(distinfo.name)
 	assert(distinfo.files)
 
-	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
-	local distName = distinfo.name..'-Linux-'..arch
+	local distName = distinfo.name..'-'..targetOS..'-'..arch
 	local osDir = distDir/distName
 	osDir:mkdir()
 
@@ -618,7 +618,7 @@ local function makeLinux(arch)
 	-- copy ffi Linux so's
 	-- same as Windows
 	-- old system?  now i'm moving to storing binaries per-library
-	local libs = getLuajitLibs(distinfo, 'Linux')
+	local libs = getLuajitLibs(distinfo, targetOS)
 	if libs then
 		for _,basefn in ipairs(libs) do
 			for _,fn in ipairs{'lib'..basefn..'.so', basefn} do
@@ -666,11 +666,19 @@ local function makeLinuxAppImage(arch)
 		return
 	end
 
-	local distName = distinfo.name..'-x86_64.AppDir'
+	local targetOS = 'Linux'
+	local targetPlatform = {os=targetOS, arch=arch}
+	local distinfo = loadDistInfo('distinfo', targetPlatform)
+	assert.type(distinfo.name, 'string')
+	assert(distinfo.name)
+	assert(distinfo.files)
+
+	local bits = assert.index({x86='32',x64='64'}, arch, "don't know what bits of arch this is (32? 64? etc?)")
+	local distName = distinfo.name..'-x86_'..bits..'.AppDir'
 	local osDir = distDir/distName
 	osDir:mkdir()
 
-	local binDirRel = path'bin/Linux'/arch	-- this is where luajit is relative to the runtime cwd
+	local binDirRel = path'bin'/targetOS/arch	-- this is where luajit is relative to the runtime cwd
 
 	--[[ do I just do AppRun here, and have the .desktop run it?
 	makeLinuxScript(distinfo, arch, osDir, binDirRel, 'AppRun')
@@ -678,7 +686,7 @@ local function makeLinuxAppImage(arch)
 	-- [[ or do I put the run in the usual place?
 	makeLinuxScript(distinfo, arch, osDir, binDirRel, nil, true)
 	local AppRunPath = osDir/'AppRun'
-	local shfn = 'run-Linux-'..arch..'.sh'
+	local shfn = 'run-'..targetOS..'-'..arch..'.sh'
 	AppRunPath:write([[
 #!/bin/sh
 cd $APPDIR
@@ -691,9 +699,9 @@ cd $APPDIR
 	dataDir:mkdir()
 
 	-- copy body
-	copyBody(distinfo, dataDir, {os='Linux', arch=arch})
+	copyBody(distinfo, dataDir, {os=targetOS, arch=arch})
 
-	local distBinPath = getDistBinPath('Linux', arch)
+	local distBinPath = getDistBinPath(targetOS, arch)
 
 	local binDir = dataDir/binDirRel
 	binDir:mkdir(true)
@@ -701,10 +709,10 @@ cd $APPDIR
 
 	-- copy ffi Linux so's
 	-- same as Windows
-	local libs = getLuajitLibs(distinfo, 'Linux')
+	local libs = getLuajitLibs(distinfo, targetOS)
 	if libs then
 		for _,basefn in ipairs(libs) do
-			for _,fn in ipairs{'lib'..basefn..'.dylib', basefn} do
+			for _,fn in ipairs{'lib'..basefn..'.so', basefn} do
 				if distBinPath(fn):exists() then
 					if distBinPath(fn):isdir() then
 						copyDirToDir(distBinPath, fn, binDir)
