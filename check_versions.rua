@@ -108,8 +108,8 @@ end)
 showerrs(||do
 	-- TODO ffi/vorbis/vorbisfile.lua has the ffi.load(vorbisfile) in it, and the prototype for vorbis_version_string
 	-- but vorbis.so has the definition of vorbis_version_string in it
-	-- but ffi/vorbis/codec.lua doesn't have a ffi.load(vorbis) in it ...
-	require 'audio.ffi.vorbis.codec'
+	-- but ffi/vorbiscodec.lua doesn't have a ffi.load(vorbis) in it ...
+	require 'audio.ffi.vorbiscodec'
 	local vorbis = require 'ffi.load' 'vorbis'
 	print('vorbis header version ... missing a test!')
 	print('vorbis library version:', ffi.string(vorbis.vorbis_version_string()))
