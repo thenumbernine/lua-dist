@@ -38,7 +38,7 @@ targets:
 		Linux-x86-AppImage
 		Linux-x64-AppImage
 	OSX = OSX/x64 .app ... though I don't have OSX to test on anymore ...
-	Android = Android, requires my SDLLuaJIT-Android project to be stored in either $SDL_LUAJIT_ANDROID_APP_PATH or in $LUA_PROJECT_PATH/../Android/SDLLuaJIT/
+	Android = Android, requires my SDLLuaJIT-Android project to be stored in either $SDL_LUAJIT_ANDROID_APP_PATH or in $LUA_PROJECT_PATH/../android/SDLLuaJIT/
 	webserver = idk what I was doing with this one
 	all = run all of them
 --]]
